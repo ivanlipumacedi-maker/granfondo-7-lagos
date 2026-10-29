@@ -55,6 +55,15 @@ button { cursor: pointer }
 .top .evento { font-family: var(--f-display); font-weight: 700; font-size: 1.45rem; line-height: 1.05; letter-spacing: .03em; text-transform: uppercase; color: var(--evento); margin-top: 6px }
 .top .title { flex: 1; min-width: 0 }
 .who { display: flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em }
+/* Mobile: el hero se apila en una columna (en fila, .title se encogía hasta una palabra por línea) */
+@media (max-width: 768px) {
+  .top { flex-direction: column; align-items: center; text-align: center; gap: 12px }
+  .logo { width: 100%; max-width: 220px }
+  .top .title { flex: none; width: 100% }
+  .top h1 { font-size: clamp(2.5rem, 12vw, 5rem) }
+  .top .evento { font-size: clamp(1.3rem, 6.5vw, 2rem) }
+  .who { justify-content: center }
+}
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--surface) }
 .seg button { border: 0; background: none; padding: 4px 12px; border-radius: 999px; font-weight: 600; text-transform: none; letter-spacing: 0; font-size: .85rem }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg) }
