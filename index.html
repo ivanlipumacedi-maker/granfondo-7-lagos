@@ -79,7 +79,8 @@ button { cursor: pointer }
 .road .asphalt { position: absolute; left: 0; right: 0; top: 13px; height: 8px; border-radius: 4px; background: color-mix(in oklab, var(--bg) 22%, transparent);
   background-image: repeating-linear-gradient(90deg, transparent 0 10px, color-mix(in oklab, var(--bg) 55%, transparent) 10px 18px); background-size: 100% 2px; background-repeat: repeat-x; background-position: 0 3px }
 .road .done { position: absolute; left: 0; top: 13px; height: 8px; border-radius: 4px; background: var(--ocre) }
-.road .car { position: absolute; top: 0; transform: translateX(-50%); font-size: 22px; line-height: 1; transition: left .6s }
+.road .car { position: absolute; top: -3px; transform: translateX(-50%); line-height: 0; transition: left .6s }
+.road .car svg { display: block; filter: drop-shadow(0 1px 1px rgb(0 0 0 / .25)) }
 .road .flag { position: absolute; right: -4px; top: 2px; font-size: 20px }
 .roadlbl { display: flex; justify-content: space-between; font-size: .75rem; opacity: .75 }
 
@@ -203,7 +204,7 @@ body { margin: 0 }
       <div class="tile"><b id="cd-s">--</b><span>seg</span></div>
     </div>
     <div>
-      <div class="road" aria-hidden="true"><div class="asphalt"></div><div class="done" id="roadDone"></div><div class="car" id="car">🚗</div><div class="flag">🏔️</div></div>
+      <div class="road" aria-hidden="true"><div class="asphalt"></div><div class="done" id="roadDone"></div><div class="car" id="car"><svg viewBox="0 0 64 30" width="46" height="22" role="img" aria-label="Renault Kardian blanca con techo negro"><path d="M3 22V15.5Q3 12.2 6.5 11.6L14.5 10.8L20.5 5Q21.6 4 23.2 4H42Q44.2 4 45.8 5.4L51.8 10.4L59.4 11.8Q62.5 12.6 62.5 16V22Z" fill="#f4f6f6" stroke="#1b2830" stroke-width=".9"/><path d="M20.5 5Q21.6 4 23.2 4H42Q44.2 4 45.8 5.4L46.6 6.2H19.3Z" fill="#151a1c"/><path d="M17.2 10.9L21.9 6.6H31.3V10.9ZM32.7 10.9V6.6H41.3Q42.9 6.6 44 7.6L47.6 10.9Z" fill="#22343c"/><path d="M3 19.2H62.5V22H3Z" fill="#151a1c"/><rect x="56.6" y="12.9" width="5.2" height="1.5" rx=".7" fill="#ffe9a6"/><rect x="3.3" y="13" width="3" height="1.8" rx=".6" fill="#d2453a"/><path d="M30 14.6H33" stroke="#9aa3a6" stroke-width=".9" stroke-linecap="round"/><circle cx="15" cy="22.5" r="5.6" fill="#151a1c"/><circle cx="15" cy="22.5" r="2.7" fill="#a7b0b3"/><circle cx="50.5" cy="22.5" r="5.6" fill="#151a1c"/><circle cx="50.5" cy="22.5" r="2.7" fill="#a7b0b3"/></svg></div><div class="flag">🏔️</div></div>
       <div class="roadlbl"><span>29 oct · arrancó la espera</span><span id="pct"></span></div>
     </div>
   </section>
