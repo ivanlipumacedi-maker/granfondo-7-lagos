@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b2830">
+<meta property="og:title" content="Rumbo al Sur">
+<meta property="og:description" content="Lipu y Guti · jueves 19 de noviembre">
+<title>Rumbo al Sur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Overpass:wght@400;600;800&family=Overpass+Mono:wght@600&display=swap">
+<style>
+/* Layout: una columna angosta tipo hoja de ruta; arriba el cartel de cuenta regresiva, abajo pestañas de uso diario */
+:root {
+  --bg: #eef2f0;        /* cielo patagónico lavado */
+  --surface: #ffffff;
+  --ink: #1b2830;       /* asfalto */
+  --muted: #5d6e73;
+  --line: #d3dcda;
+  --accent: #157f80;    /* lago glaciar */
+  --accent-soft: #d6ecea;
+  --ocre: #b9791f;      /* estepa */
+  --ocre-soft: #f5e6cd;
+  --danger: #b03a2e;
+  --a: #157f80;
+  --b: #b9791f;
+  --f-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-body: "Overpass", "Segoe UI", system-ui, sans-serif;
+  --f-num: "Overpass Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10171b; --surface: #182227; --ink: #e5ecea; --muted: #93a4a7; --line: #2a373d;
+  --accent: #4dbdb7; --accent-soft: #1d3a3b; --ocre: #e2a54b; --ocre-soft: #3a2e1b; --danger: #e0786b;
+  --a: #4dbdb7; --b: #e2a54b; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #10171b; --surface: #182227; --ink: #e5ecea; --muted: #93a4a7; --line: #2a373d;
+  --accent: #4dbdb7; --accent-soft: #1d3a3b; --ocre: #e2a54b; --ocre-soft: #3a2e1b; --danger: #e0786b;
+  --a: #4dbdb7; --b: #e2a54b; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px }
+.wrap { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 900; text-transform: uppercase; letter-spacing: .02em; margin: 0; text-wrap: balance; line-height: 1 }
+button, input, select { font: inherit; color: inherit }
+button { cursor: pointer }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+
+/* Encabezado */
+.top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap }
+.shield { width: 58px; height: 66px; flex: none; color: var(--accent) }
+.top h1 { font-size: 2.6rem }
+.top p { margin: 4px 0 0; color: var(--muted) }
+.top .title { flex: 1; min-width: 0 }
+.who { display: flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--surface) }
+.seg button { border: 0; background: none; padding: 4px 12px; border-radius: 999px; font-weight: 600; text-transform: none; letter-spacing: 0; font-size: .85rem }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg) }
+
+/* Cuenta regresiva */
+.count { background: var(--ink); color: var(--bg); border-radius: 14px; padding: 20px 18px 18px; display: flex; flex-direction: column; gap: 16px }
+.count .eyebrow { font-size: .75rem; letter-spacing: .14em; text-transform: uppercase; opacity: .75 }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px }
+.tile { background: color-mix(in oklab, var(--bg) 10%, transparent); border: 1px solid color-mix(in oklab, var(--bg) 18%, transparent); border-radius: 8px; padding: 10px 4px 8px; text-align: center }
+.tile b { display: block; font-family: var(--f-num); font-size: clamp(1.8rem, 9vw, 3rem); line-height: 1; font-variant-numeric: tabular-nums }
+.tile span { font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; opacity: .75 }
+.road { position: relative; height: 34px }
+.road .asphalt { position: absolute; left: 0; right: 0; top: 13px; height: 8px; border-radius: 4px; background: color-mix(in oklab, var(--bg) 22%, transparent);
+  background-image: repeating-linear-gradient(90deg, transparent 0 10px, color-mix(in oklab, var(--bg) 55%, transparent) 10px 18px); background-size: 100% 2px; background-repeat: repeat-x; background-position: 0 3px }
+.road .done { position: absolute; left: 0; top: 13px; height: 8px; border-radius: 4px; background: var(--ocre) }
+.road .car { position: absolute; top: 0; transform: translateX(-50%); font-size: 22px; line-height: 1; transition: left .6s }
+.road .flag { position: absolute; right: -4px; top: 2px; font-size: 20px }
+.roadlbl { display: flex; justify-content: space-between; font-size: .75rem; opacity: .75 }
+
+/* Misión del día */
+.mision { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: start }
+.mojon { grid-row: span 3; width: 46px; border: 2px solid var(--ink); border-radius: 10px 10px 3px 3px; text-align: center; padding: 6px 0 4px; font-family: var(--f-num); line-height: 1.05; background: var(--surface) }
+.mojon small { display: block; font-size: .6rem; letter-spacing: .1em; color: var(--muted) }
+.mojon b { font-size: 1.25rem }
+.mision h2 { font-size: 1.05rem; letter-spacing: .1em; color: var(--muted); font-weight: 700 }
+.mision p { margin: 0; font-size: 1.1rem; font-weight: 600; min-width: 0 }
+.mision .acts { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 8px }
+.btn { border: 1px solid var(--ink); background: var(--ink); color: var(--bg); border-radius: 8px; padding: 7px 14px; font-weight: 600 }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line) }
+.btn:disabled { opacity: .45; cursor: not-allowed }
+.link { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px }
+.done-tag { color: var(--accent); font-weight: 600 }
+.lista-misiones { grid-column: 1 / -1; margin: 10px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px }
+.lista-misiones li { display: grid; grid-template-columns: 74px 1fr auto; gap: 8px; font-size: .9rem; align-items: baseline }
+.lista-misiones .d { font-family: var(--f-num); color: var(--muted); font-size: .8rem }
+.lista-misiones .future { opacity: .45 }
+.extras { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 10px }
+.extra { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; padding: 4px 0 }
+.extra .t { min-width: 0; overflow-wrap: anywhere; font-weight: 600 }
+.extra .t .hint { font-weight: 400; font-size: .8rem }
+.extra.ok .t > div:first-child { text-decoration: line-through; color: var(--muted) }
+.tick { width: 24px; height: 24px; border: 2px solid var(--ink); border-radius: 6px; background: var(--surface); padding: 0; line-height: 1; font-weight: 800; color: var(--accent) }
+.extra.ok .tick { border-color: var(--accent); background: var(--accent-soft) }
+.extras .form { padding: 8px; margin-top: 4px }
+
+/* Pestañas */
+.tabs { display: flex; flex-wrap: wrap; gap: 0 4px; border-bottom: 2px solid var(--line) }
+.tabs button { border: 0; background: none; padding: 10px 12px 8px; font-family: var(--f-display); font-weight: 700; font-size: 1.1rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent) }
+.panel { display: flex; flex-direction: column; gap: 14px }
+.panel h3 { font-size: 1.5rem }
+.hint { color: var(--muted); margin: 0; font-size: .9rem }
+.notice { background: var(--ocre-soft); border-radius: 10px; padding: 10px 14px; font-size: .9rem }
+
+/* Formularios */
+.form { display: flex; flex-wrap: wrap; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px }
+.form input, .form select { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 8px 10px; min-width: 0; flex: 1 1 140px }
+.form .grow { flex: 3 1 220px }
+.form .short { flex: 0 1 120px }
+.form .btn { flex: 0 0 auto }
+label.f { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; flex: 1 1 180px }
+label.f input { text-transform: none; letter-spacing: 0; font-size: .95rem; color: var(--ink) }
+
+/* Itinerario */
+.ruta { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; position: relative }
+.ruta li { display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--line); align-items: start }
+.ruta .km { border: 2px solid var(--ink); border-radius: 9px 9px 3px 3px; text-align: center; font-family: var(--f-num); font-size: .62rem; line-height: 1.1; padding: 4px 0 3px; color: var(--muted) }
+.ruta .km b { display: block; color: var(--ink); font-size: .95rem }
+.ruta .lugar { font-weight: 800; font-size: 1.05rem }
+.ruta .meta { color: var(--muted); font-size: .85rem }
+.ruta .nota { font-size: .92rem; margin-top: 2px }
+.x { border: 0; background: none; color: var(--muted); font-size: .85rem; padding: 4px 6px; border-radius: 6px }
+.x.armed { background: var(--danger); color: #fff }
+
+/* Valija */
+.prog { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+.prog div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px }
+.prog .n { font-family: var(--f-num); font-size: 1.4rem }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-top: 6px }
+.bar i { display: block; height: 100% }
+.cat { display: flex; flex-direction: column; gap: 2px }
+.cat h4 { margin: 8px 0 4px; font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted) }
+.item { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line) }
+.item input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent) }
+.item .t { min-width: 0; overflow-wrap: anywhere }
+.item.ok .t { text-decoration: line-through; color: var(--muted) }
+.chip { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: .78rem; font-weight: 600; background: var(--surface); white-space: nowrap }
+.chip.A { border-color: var(--a); color: var(--a) }
+.chip.B { border-color: var(--b); color: var(--b) }
+
+/* Bingo */
+.bingo { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px }
+.cell { aspect-ratio: 1; max-width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 4px; font-size: clamp(.58rem, 2.4vw, .8rem); line-height: 1.15; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 2px; overflow: hidden }
+.cell .e { font-size: clamp(1rem, 5vw, 1.5rem) }
+.cell.A { background: var(--accent-soft); border-color: var(--a) }
+.cell.B { background: var(--ocre-soft); border-color: var(--b) }
+.cell .por { font-weight: 800; font-size: .9em }
+.cell.A .por { color: var(--a) } .cell.B .por { color: var(--b) }
+.cell.free { background: var(--ink); color: var(--bg); border-color: var(--ink) }
+.score { display: flex; gap: 16px; flex-wrap: wrap; font-weight: 600 }
+.score .A { color: var(--a) } .score .B { color: var(--b) }
+
+/* Gastos */
+.saldo { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px }
+.saldo .big { font-family: var(--f-display); font-weight: 900; font-size: 1.7rem; line-height: 1.05; text-transform: uppercase }
+.gasto { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line) }
+.gasto .m { font-family: var(--f-num); font-variant-numeric: tabular-nums }
+.gasto .meta { color: var(--muted); font-size: .82rem }
+
+.empty { border: 1px dashed var(--line); border-radius: 12px; padding: 18px; color: var(--muted); text-align: center }
+.status { font-size: .8rem; color: var(--muted); text-align: center }
+@media (prefers-reduced-motion: reduce) { .road .car { transition: none } }
+[hidden] { display: none !important }
+img { max-width: 100% }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px) }
+body { margin: 0 }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <svg class="shield" viewBox="0 0 58 66" aria-hidden="true"><path d="M4 4h50v30c0 16-12 25-25 30C16 59 4 50 4 34z" fill="none" stroke="currentColor" stroke-width="4"/><text x="29" y="27" text-anchor="middle" font-family="Big Shoulders Display, Arial Narrow, sans-serif" font-weight="900" font-size="11" fill="currentColor">RUTA</text><text x="29" y="46" text-anchor="middle" font-family="Big Shoulders Display, Arial Narrow, sans-serif" font-weight="900" font-size="20" fill="currentColor">SUR</text></svg>
+    <div class="title">
+      <h1>Rumbo al Sur</h1>
+      <p id="sub">Salimos el jueves 19 de noviembre</p>
+    </div>
+    <div class="who">Soy <span class="seg" id="soy"></span></div>
+  </header>
+
+  <section class="count" aria-label="Cuenta regresiva">
+    <div class="eyebrow" id="countLbl">Faltan para arrancar</div>
+    <div class="tiles">
+      <div class="tile"><b id="cd-d">--</b><span>días</span></div>
+      <div class="tile"><b id="cd-h">--</b><span>horas</span></div>
+      <div class="tile"><b id="cd-m">--</b><span>min</span></div>
+      <div class="tile"><b id="cd-s">--</b><span>seg</span></div>
+    </div>
+    <div>
+      <div class="road" aria-hidden="true"><div class="asphalt"></div><div class="done" id="roadDone"></div><div class="car" id="car">🚗</div><div class="flag">🏔️</div></div>
+      <div class="roadlbl"><span>29 oct · arrancó la espera</span><span id="pct"></span></div>
+    </div>
+  </section>
+
+  <section class="mision" aria-label="Misión del día">
+    <div class="mojon"><small>DÍA</small><b id="mDia">1</b><small>DE 21</small></div>
+    <h2>Misión de hoy</h2>
+    <p id="mTxt"></p>
+    <div class="acts"><span id="mAct"></span><button class="link" id="verTodas" type="button">Ver las 21</button></div>
+    <ol class="lista-misiones" id="todas" hidden></ol>
+    <div class="extras">
+      <h2>Misiones extra</h2>
+      <div id="extras"></div>
+      <form class="form" id="fMis">
+        <input id="mNueva" class="grow" maxlength="140" placeholder="Proponé una misión para el otro o para los dos" required aria-label="Nueva misión">
+        <button class="btn" type="submit">Agregar</button>
+      </form>
+    </div>
+  </section>
+
+  <div id="aviso" class="notice" hidden></div>
+
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-t="itin" type="button">Itinerario</button>
+    <button role="tab" data-t="valija" type="button">Qué llevamos</button>
+    <button role="tab" data-t="bingo" type="button">Bingo de ruta</button>
+    <button role="tab" data-t="gastos" type="button">Cuentas claras</button>
+    <button role="tab" data-t="ajustes" type="button">Ajustes</button>
+  </nav>
+
+  <section class="panel" data-p="itin">
+    <h3>Hoja de ruta</h3>
+    <p class="hint">Cada parada con su fecha, los km del tramo y lo que no hay que perderse.</p>
+    <form class="form" id="fParada">
+      <input id="pFecha" type="date" min="2026-11-19" class="short" required aria-label="Fecha">
+      <input id="pLugar" class="grow" placeholder="Lugar (ej. Puerto Madryn)" required aria-label="Lugar">
+      <input id="pKm" type="number" min="0" class="short" placeholder="Km del tramo" aria-label="Kilómetros del tramo">
+      <input id="pNota" class="grow" placeholder="Nota: dónde dormimos, qué ver, dónde cargar nafta" aria-label="Nota">
+      <button class="btn" type="submit">Agregar parada</button>
+    </form>
+    <ol class="ruta" id="ruta"></ol>
+    <p class="hint" id="kmTotal"></p>
+  </section>
+
+  <section class="panel" data-p="valija" hidden>
+    <h3>Qué llevamos</h3>
+    <div class="prog" id="prog"></div>
+    <form class="form" id="fItem">
+      <input id="iTxt" class="grow" placeholder="Algo más para llevar" required aria-label="Ítem">
+      <select id="iCat" aria-label="Categoría"></select>
+      <select id="iQuien" aria-label="Quién lo lleva"></select>
+      <button class="btn" type="submit">Sumar</button>
+    </form>
+    <p class="hint">Tocá el nombre al lado de cada cosa para cambiar quién la lleva.</p>
+    <div id="valija"></div>
+  </section>
+
+  <section class="panel" data-p="bingo" hidden>
+    <h3>Bingo de ruta</h3>
+    <p class="hint">El que lo ve primero lo marca. Un toque: lo vi yo. Otro toque: lo vio el otro. Otro más: se borra. Línea completa paga el café en la próxima YPF.</p>
+    <div class="score" id="score"></div>
+    <div class="bingo" id="bingo"></div>
+  </section>
+
+  <section class="panel" data-p="gastos" hidden>
+    <h3>Cuentas claras</h3>
+    <div class="saldo" id="saldo"></div>
+    <form class="form" id="fGasto">
+      <input id="gDesc" class="grow" placeholder="Qué (nafta, peaje, cena…)" required aria-label="Descripción">
+      <input id="gMonto" type="number" min="1" step="1" class="short" placeholder="$ monto" required aria-label="Monto en pesos">
+      <select id="gPago" aria-label="Quién pagó"></select>
+      <button class="btn" type="submit">Anotar</button>
+    </form>
+    <div id="gastos"></div>
+  </section>
+
+  <section class="panel" data-p="ajustes" hidden>
+    <h3>Ajustes del viaje</h3>
+    <form class="form" id="fCfg">
+      <label class="f">Nombre 1<input id="cA" maxlength="20"></label>
+      <label class="f">Nombre 2<input id="cB" maxlength="20" placeholder="Nombre de tu amiga"></label>
+      <label class="f">Hora de salida (19/11)<input id="cHora" type="time"></label>
+      <label class="f">Destino final<input id="cDest" maxlength="40" placeholder="Ushuaia, El Chaltén…"></label>
+      <button class="btn" type="submit">Guardar</button>
+    </form>
+    <p class="hint" id="cfgMsg"></p>
+  </section>
+
+  <p class="status" id="status">Conectando…</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+const START = new Date('2026-10-29T00:00:00-03:00');
+const TRIP_DATE = '2026-11-19';
+const state = { cfg: {}, items: [], paradas: [], gastos: [], bingo: {}, misiones: {}, extras: [], db: null, puedeEscribir: false };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const peso = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+const nombres = () => ({ A: state.cfg.nombreA || 'Ivan', B: state.cfg.nombreB || 'Amiga' });
+const ls = { get(k) { try { return localStorage.getItem(k) } catch { return null } }, set(k, v) { try { localStorage.setItem(k, v) } catch {} } };
+let yo = ls.get('soy') === 'B' ? 'B' : 'A';
+
+function target() {
+  const h = /^\d\d:\d\d$/.test(state.cfg.hora || '') ? state.cfg.hora : '07:00';
+  return new Date(`${TRIP_DATE}T${h}:00-03:00`);
+}
+
+/* ---------- Cuenta regresiva ---------- */
+const pad = (n) => String(n).padStart(2, '0');
+function tick() {
+  const now = new Date(), t = target();
+  let ms = t - now;
+  if (ms <= 0) {
+    const dia = Math.floor((now - t) / 864e5) + 1;
+    $('countLbl').textContent = dia <= 21 ? `¡En ruta! Día ${dia} del viaje` : 'Viaje cumplido';
+    ['d', 'h', 'm', 's'].forEach((k) => ($('cd-' + k).textContent = '00'));
+    ms = 0;
+  } else {
+    const s = Math.floor(ms / 1000);
+    $('cd-d').textContent = pad(Math.floor(s / 86400));
+    $('cd-h').textContent = pad(Math.floor(s / 3600) % 24);
+    $('cd-m').textContent = pad(Math.floor(s / 60) % 60);
+    $('cd-s').textContent = pad(s % 60);
+  }
+  const pct = Math.min(100, Math.max(0, ((now - START) / (t - START)) * 100));
+  $('roadDone').style.width = pct + '%';
+  $('car').style.left = `calc(${pct}% * .94 + 3%)`;
+  $('pct').textContent = `${pct.toFixed(1)}% de la espera`;
+}
+
+/* ---------- Misiones: una por día, del 29/10 al 18/11 ---------- */
+const MISIONES = [
+  'Bautizar el auto. Tiene que tener nombre propio antes de cruzar el Colorado.',
+  'Cada uno elige la canción oficial del viaje. Se vota y la perdedora suena igual.',
+  'Revisar vencimientos: licencia, VTV, seguro y cédula del auto.',
+  'Bajar los mapas offline de toda la ruta. En la estepa no hay señal por horas.',
+  'Armar la playlist compartida: 20 temas cada uno, sin derecho a veto.',
+  'Firmar el pacto del mate: quién ceba, cada cuántos km y cómo se respeta.',
+  'Turno al service: aceite, frenos, cubiertas, auxilio y escobillas.',
+  'Cada uno nombra 3 lugares que sí o sí quiere ver. Van al itinerario.',
+  'Inventar el juego oficial para los tramos largos de ruta recta.',
+  'Botiquín, matafuego cargado, balizas y chalecos reflectivos. Que estén en el auto.',
+  'Descargar un podcast o audiolibro para los tramos sin señal.',
+  'Acordar cómo dividimos la plata y anotar el primer gasto en Cuentas claras.',
+  'Confirmar dónde dormimos las primeras dos noches.',
+  'Mandarse un audio: la mayor expectativa y el mayor miedo del viaje. Se escucha a la vuelta.',
+  'Prueba de abrigo: en noviembre el viento patagónico igual corta.',
+  'Snacks secretos: cada uno compra 3 y no le dice al otro cuáles.',
+  'Sacar efectivo. En pueblos chicos y estaciones de ruta no siempre hay posnet.',
+  'Cargar el itinerario día por día en esta app.',
+  'Lavar el auto. Va a volver lleno de tierra, pero que arranque digno.',
+  'Armar el bolso con la lista de Qué llevamos al 100%.',
+  'Cargar nafta, poner alarma y dormir temprano. Mañana arrancamos.',
+];
+const misionIdx = () => Math.min(20, Math.max(0, Math.floor((Date.now() - START) / 864e5)));
+function fechaMision(i) { const d = new Date(START.getTime() + i * 864e5 + 12 * 36e5); return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', timeZone: 'America/Argentina/Buenos_Aires' }); }
+function renderMision() {
+  const i = misionIdx(), n = nombres();
+  $('mDia').textContent = i + 1;
+  $('mTxt').textContent = MISIONES[i];
+  const hecha = state.misiones[i];
+  $('mAct').innerHTML = hecha
+    ? `<span class="done-tag">✓ Cumplida por ${esc(n[hecha] || hecha)}</span> <button class="link" type="button" data-mis="${i}">Deshacer</button>`
+    : `<button class="btn" type="button" data-mis="${i}" ${state.puedeEscribir ? '' : 'disabled'}>Misión cumplida</button>`;
+  $('todas').innerHTML = MISIONES.map((m, k) => {
+    const h = state.misiones[k];
+    return `<li class="${k > i ? 'future' : ''}"><span class="d">${fechaMision(k)}</span><span>${esc(m)}</span><span>${h ? '✓' : ''}</span></li>`;
+  }).join('');
+}
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-mis]'); if (!b || !state.db) return;
+  const i = b.dataset.mis, m = { ...state.misiones };
+  if (m[i]) delete m[i]; else m[i] = yo;
+  await escribir(() => state.db.doc('juego/misiones').set({ hechas: m }));
+});
+function renderExtras() {
+  const n = nombres();
+  $('extras').innerHTML = state.extras.length ? state.extras.map((x) => `<div class="extra ${x.hecha ? 'ok' : ''}"><button type="button" class="tick" data-ex="${esc(x.id)}" aria-label="${x.hecha ? 'Desmarcar' : 'Marcar cumplida'}">${x.hecha ? '✓' : ''}</button><div class="t"><div>${esc(x.texto)}</div><div class="hint">Propuesta por ${esc(n[x.autor] || '?')}${x.hecha ? ` · cumplida por ${esc(n[x.hecha] || '?')}` : ''}</div></div><button class="x" type="button" data-del-ex="${esc(x.id)}" aria-label="Borrar misión">✕</button></div>`).join('')
+    : '<p class="hint">Todavía no hay. Proponé la primera: un desafío, una apuesta o algo que el otro tiene que conseguir antes del 19.</p>';
+}
+$('extras').addEventListener('click', (e) => {
+  const t = e.target.closest('[data-ex]');
+  if (t) { const x = state.extras.find((i) => i.id === t.dataset.ex); escribir(() => state.db.collection('extras').doc(t.dataset.ex).update({ hecha: x?.hecha ? null : yo })); }
+  const d = e.target.closest('[data-del-ex]');
+  if (d) armarBorrado(d, () => escribir(() => state.db.collection('extras').doc(d.dataset.delEx).delete()));
+});
+$('fMis').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const ok = await escribir(() => state.db.collection('extras').add({ texto: $('mNueva').value.trim(), autor: yo, hecha: null, creado: Date.now() }));
+  if (ok) $('mNueva').value = '';
+});
+$('verTodas').onclick = () => { const t = $('todas'); t.hidden = !t.hidden; $('verTodas').textContent = t.hidden ? 'Ver las 21' : 'Ocultar'; };
+
+/* ---------- Encabezado y quién soy ---------- */
+function renderHeader() {
+  const n = nombres(), t = target();
+  const hora = t.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' });
+  $('sub').textContent = `${n.A} y ${n.B} · jueves 19 de noviembre, ${hora} hs` + (state.cfg.destino ? ` · destino ${state.cfg.destino}` : '');
+  $('soy').innerHTML = ['A', 'B'].map((k) => `<button type="button" data-soy="${k}" aria-pressed="${yo === k}">${esc(n[k])}</button>`).join('');
+  const opts = (sel) => ['A', 'B', 'AB'].map((k) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${k === 'AB' ? 'Cualquiera' : esc(n[k])}</option>`).join('');
+  $('iQuien').innerHTML = opts('AB');
+  $('gPago').innerHTML = ['A', 'B'].map((k) => `<option value="${k}" ${k === yo ? 'selected' : ''}>Pagó ${esc(n[k])}</option>`).join('');
+}
+$('soy').addEventListener('click', (e) => { const b = e.target.closest('[data-soy]'); if (!b) return; yo = b.dataset.soy; ls.set('soy', yo); renderAll(); });
+
+/* ---------- Pestañas ---------- */
+function showTab(t) {
+  document.querySelectorAll('#tabs button').forEach((b) => b.setAttribute('aria-selected', b.dataset.t === t));
+  document.querySelectorAll('.panel').forEach((p) => (p.hidden = p.dataset.p !== t));
+  ls.set('tab', t);
+}
+$('tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-t]'); if (b) showTab(b.dataset.t); });
+showTab(ls.get('tab') || 'itin');
+
+/* ---------- Borrado con doble toque ---------- */
+function armarBorrado(btn, fn) {
+  if (btn.classList.contains('armed')) { fn(); return; }
+  btn.classList.add('armed'); btn.textContent = '¿Borrar?';
+  setTimeout(() => { btn.classList.remove('armed'); btn.textContent = '✕'; }, 3000);
+}
+
+/* ---------- Itinerario ---------- */
+function renderItin() {
+  const el = $('ruta');
+  if (!state.paradas.length) {
+    el.innerHTML = '<li class="empty" style="display:block">Todavía no hay paradas. Cargá la primera: la salida del 19 y hasta dónde llegan ese día.</li>';
+    $('kmTotal').textContent = ''; return;
+  }
+  let acum = 0;
+  el.innerHTML = state.paradas.map((p) => {
+    acum += Number(p.km) || 0;
+    const f = new Date(p.fecha + 'T12:00:00-03:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'America/Argentina/Buenos_Aires' });
+    return `<li><div class="km">KM<b>${acum}</b></div><div><div class="lugar">${esc(p.lugar)}</div><div class="meta">${esc(f)}${p.km ? ` · ${esc(p.km)} km de tramo` : ''}</div>${p.nota ? `<div class="nota">${esc(p.nota)}</div>` : ''}</div><button class="x" type="button" data-del-parada="${esc(p.id)}" aria-label="Borrar parada">✕</button></li>`;
+  }).join('');
+  $('kmTotal').textContent = `Total cargado: ${acum.toLocaleString('es-AR')} km.`;
+}
+$('ruta').addEventListener('click', (e) => { const b = e.target.closest('[data-del-parada]'); if (b) armarBorrado(b, () => escribir(() => state.db.collection('paradas').doc(b.dataset.delParada).delete())); });
+$('fParada').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const ok = await escribir(() => state.db.collection('paradas').add({ fecha: $('pFecha').value, lugar: $('pLugar').value.trim(), km: Number($('pKm').value) || 0, nota: $('pNota').value.trim(), creado: Date.now() }));
+  if (ok) { $('pLugar').value = ''; $('pKm').value = ''; $('pNota').value = ''; }
+});
+
+/* ---------- Valija ---------- */
+const CATS = ['Papeles del auto', 'Seguridad en ruta', 'Ropa', 'Mate y comida', 'Tecnología', 'Varios'];
+$('iCat').innerHTML = CATS.map((c) => `<option>${c}</option>`).join('');
+function renderValija() {
+  const n = nombres(), it = state.items;
+  const cuenta = (k) => { const mis = it.filter((x) => x.quien === k || x.quien === 'AB'); return [mis.filter((x) => x.listo).length, mis.length]; };
+  $('prog').innerHTML = ['A', 'B'].map((k) => { const [h, t] = cuenta(k); const p = t ? (h / t) * 100 : 0;
+    return `<div><div class="hint">${esc(n[k])} tiene listo</div><div class="n">${h}/${t}</div><div class="bar"><i style="width:${p}%;background:var(--${k.toLowerCase()})"></i></div></div>`; }).join('');
+  if (!it.length) { $('valija').innerHTML = '<div class="empty">La lista está vacía. Sumá lo primero que no puede faltar.</div>'; return; }
+  const cats = [...new Set([...CATS, ...it.map((x) => x.cat)])];
+  $('valija').innerHTML = cats.map((c) => {
+    const xs = it.filter((x) => (x.cat || 'Varios') === c); if (!xs.length) return '';
+    return `<div class="cat"><h4>${esc(c)}</h4>${xs.map((x) => `<div class="item ${x.listo ? 'ok' : ''}"><input type="checkbox" id="chk-${esc(x.id)}" data-chk="${esc(x.id)}" ${x.listo ? 'checked' : ''} aria-label="Listo"><label class="t" for="chk-${esc(x.id)}">${esc(x.texto)}${x.tip ? `<div class="hint">${esc(x.tip)}</div>` : ''}</label><button type="button" class="chip ${x.quien === 'AB' ? '' : x.quien}" data-quien="${esc(x.id)}">${x.quien === 'AB' ? 'Cualquiera' : esc(n[x.quien] || '?')}</button><button class="x" type="button" data-del-item="${esc(x.id)}" aria-label="Borrar">✕</button></div>`).join('')}</div>`;
+  }).join('');
+}
+$('valija').addEventListener('change', (e) => { const c = e.target.closest('[data-chk]'); if (c) escribir(() => state.db.collection('valija').doc(c.dataset.chk).update({ listo: c.checked })); });
+$('valija').addEventListener('click', (e) => {
+  const q = e.target.closest('[data-quien]');
+  if (q) { const x = state.items.find((i) => i.id === q.dataset.quien); const sig = { A: 'B', B: 'AB', AB: 'A' }[x?.quien] || 'A'; escribir(() => state.db.collection('valija').doc(q.dataset.quien).update({ quien: sig })); }
+  const d = e.target.closest('[data-del-item]');
+  if (d) armarBorrado(d, () => escribir(() => state.db.collection('valija').doc(d.dataset.delItem).delete()));
+});
+$('fItem').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const ok = await escribir(() => state.db.collection('valija').add({ texto: $('iTxt').value.trim(), cat: $('iCat').value, quien: $('iQuien').value, listo: false, orden: Date.now() }));
+  if (ok) $('iTxt').value = '';
+});
+
+/* ---------- Bingo ---------- */
+const BINGO = [
+  ['🦙', 'Guanaco al costado de la ruta'], ['🐦', 'Choique cruzando'], ['🚩', 'Santuario del Gauchito Gil'], ['🇦🇷', 'Cartel de Malvinas argentinas'], ['🌬️', 'Ráfaga que mueve el auto'],
+  ['🪨', 'Tramo de ripio'], ['⛽', 'Cartel de "próxima estación a 100 km o más"'], ['🐑', 'Majada de ovejas en la ruta'], ['🍎', 'Barrera sanitaria: te sacan la fruta'], ['🏔️', 'Primer cerro nevado'],
+  ['💧', 'Lago color turquesa'], ['🦊', 'Zorro gris'], ['🚗', 'SALIMOS'], ['🚴', 'Cicloviajero cargado en la ruta'], ['🏍️', 'Motoqueros que saludan'],
+  ['🗣️', 'Alguien dice "¿falta mucho?"'], ['📵', 'Sin señal por más de una hora'], ['🌅', 'Atardecer después de las 21 hs'], ['🍖', 'Cordero patagónico'], ['🌈', 'Arcoíris en la estepa'],
+  ['🛣️', 'Cartel de la Ruta 40'], ['🏚️', 'Pueblo de menos de 500 habitantes'], ['🐄', 'Vaca suelta en la banquina'], ['🌊', 'Ver el mar desde la ruta'], ['🍫', 'Comprar alfajores regionales'],
+];
+const LINEAS = (() => { const L = []; for (let i = 0; i < 5; i++) { L.push([0, 1, 2, 3, 4].map((j) => i * 5 + j)); L.push([0, 1, 2, 3, 4].map((j) => j * 5 + i)); } L.push([0, 6, 12, 18, 24], [4, 8, 12, 16, 20]); return L; })();
+function renderBingo() {
+  const n = nombres(), m = state.bingo;
+  $('bingo').innerHTML = BINGO.map(([e, t], i) => {
+    if (i === 12) return `<div class="cell free"><span class="e">${e}</span><b>${t}</b></div>`;
+    const w = m[i];
+    return `<button type="button" class="cell ${w || ''}" data-b="${i}"><span class="e">${e}</span><span>${esc(t)}</span>${w ? `<span class="por">${esc(n[w])}</span>` : ''}</button>`;
+  }).join('');
+  const pts = { A: 0, B: 0 }; Object.values(m).forEach((w) => { if (pts[w] != null) pts[w]++; });
+  const lineas = LINEAS.filter((l) => l.every((i) => i === 12 || m[i])).length;
+  $('score').innerHTML = `<span class="A">${esc(n.A)}: ${pts.A}</span><span class="B">${esc(n.B)}: ${pts.B}</span><span>${lineas ? `${lineas} línea${lineas > 1 ? 's' : ''} completa${lineas > 1 ? 's' : ''} 🎉` : 'Sin líneas todavía'}</span>`;
+}
+$('bingo').addEventListener('click', (e) => {
+  const c = e.target.closest('[data-b]'); if (!c || !state.db) return;
+  const i = c.dataset.b, m = { ...state.bingo }, otro = yo === 'A' ? 'B' : 'A';
+  if (!m[i]) m[i] = yo; else if (m[i] === yo) m[i] = otro; else delete m[i];
+  escribir(() => state.db.doc('juego/bingo').set({ marcas: m }));
+});
+
+/* ---------- Gastos ---------- */
+function renderGastos() {
+  const n = nombres(), g = state.gastos;
+  const tot = { A: 0, B: 0 }; g.forEach((x) => { if (tot[x.pago] != null) tot[x.pago] += Number(x.monto) || 0; });
+  const total = tot.A + tot.B, dif = (tot.A - tot.B) / 2;
+  const frase = Math.abs(dif) < 1 ? 'Están a mano' : dif > 0 ? `${n.B} le debe ${peso.format(dif)} a ${n.A}` : `${n.A} le debe ${peso.format(-dif)} a ${n.B}`;
+  $('saldo').innerHTML = `<div class="hint">Gastado entre los dos: ${peso.format(total)} · ${esc(n.A)} ${peso.format(tot.A)} · ${esc(n.B)} ${peso.format(tot.B)}</div><div class="big">${esc(frase)}</div>`;
+  $('gastos').innerHTML = g.length ? g.map((x) => `<div class="gasto"><div><div>${esc(x.desc)}</div><div class="meta">Pagó ${esc(n[x.pago] || '?')} · ${new Date(x.creado).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</div></div><span class="m">${peso.format(x.monto)}</span><button class="x" type="button" data-del-gasto="${esc(x.id)}" aria-label="Borrar gasto">✕</button></div>`).join('')
+    : '<div class="empty">Sin gastos todavía. Anotá la primera carga de nafta y la app hace la cuenta.</div>';
+}
+$('gastos').addEventListener('click', (e) => { const b = e.target.closest('[data-del-gasto]'); if (b) armarBorrado(b, () => escribir(() => state.db.collection('gastos').doc(b.dataset.delGasto).delete())); });
+$('fGasto').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const ok = await escribir(() => state.db.collection('gastos').add({ desc: $('gDesc').value.trim(), monto: Math.round(Number($('gMonto').value)), pago: $('gPago').value, creado: Date.now() }));
+  if (ok) { $('gDesc').value = ''; $('gMonto').value = ''; }
+});
+
+/* ---------- Ajustes ---------- */
+function renderAjustes() {
+  if (document.activeElement && document.activeElement.closest('#fCfg')) return;
+  $('cA').value = state.cfg.nombreA || 'Ivan'; $('cB').value = state.cfg.nombreB || '';
+  $('cHora').value = state.cfg.hora || '07:00'; $('cDest').value = state.cfg.destino || '';
+}
+$('fCfg').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const ok = await escribir(() => state.db.doc('config/main').set({ nombreA: $('cA').value.trim() || 'Ivan', nombreB: $('cB').value.trim(), hora: $('cHora').value || '07:00', destino: $('cDest').value.trim() }));
+  $('cfgMsg').textContent = ok ? 'Guardado. Los dos ven el cambio al instante.' : '';
+});
+
+/* ---------- Datos compartidos ---------- */
+async function escribir(fn) {
+  if (!state.db) return false;
+  try { await fn(); return true; }
+  catch (err) {
+    const msg = 'No se pudo guardar. Revisá la conexión y probá de nuevo.'; console.error(err);
+    aviso(msg); return false;
+  }
+}
+function aviso(t) { const a = $('aviso'); a.textContent = t; a.hidden = !t; }
+function renderAll() { renderHeader(); renderMision(); renderExtras(); renderItin(); renderValija(); renderBingo(); renderGastos(); renderAjustes(); tick(); }
+function bloquear(on) { document.querySelectorAll('form input, form select, form button, [data-b], .item input').forEach((x) => (x.disabled = on)); }
+
+renderAll(); setInterval(tick, 1000);
+
+/* ---------- Datos compartidos en Supabase ---------- */
+const SUPABASE_URL = 'https://olsurumbzcgoyvyngvqi.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Oe7M1b2Y9ovMGCZB1LfQpQ_T_QeIQvu';
+
+function codigoViaje() {
+  const h = location.hash.replace(/^#/, '').replace(/^v=/, '');
+  if (/^[a-f0-9]{24,64}$/.test(h)) { ls.set('viaje', h); return h; }
+  const g = ls.get('viaje');
+  return g && /^[a-f0-9]{24,64}$/.test(g) ? g : null;
+}
+
+function crearDb(sb, viaje) {
+  const cache = {}, subs = {}, cargando = {};
+  const canal = sb.channel('viaje-' + viaje, { config: { broadcast: { self: false } } });
+  const avisar = (col) => (subs[col] || []).forEach((fn) => fn());
+  async function cargar(col) {
+    const { data, error } = await sb.from('docs').select('id,data').eq('viaje', viaje).eq('col', col);
+    if (error) throw error;
+    cache[col] = new Map(data.map((r) => [r.id, r.data]));
+    avisar(col);
+  }
+  function suscribir(col, fn) {
+    (subs[col] = subs[col] || []).push(fn);
+    if (cache[col]) fn(); else if (!cargando[col]) cargando[col] = cargar(col).catch(onErr);
+  }
+  let onErr = () => {};
+  async function escribirFila(col, id, data) {
+    (cache[col] = cache[col] || new Map()).set(id, data); avisar(col);
+    const { error } = await sb.from('docs').upsert({ viaje, col, id, data, updated_at: new Date().toISOString() });
+    if (error) { await cargar(col); throw error; }
+    canal.send({ type: 'broadcast', event: 'cambio', payload: { col } });
+  }
+  async function borrarFila(col, id) {
+    cache[col]?.delete(id); avisar(col);
+    const { error } = await sb.from('docs').delete().eq('viaje', viaje).eq('col', col).eq('id', id);
+    if (error) { await cargar(col); throw error; }
+    canal.send({ type: 'broadcast', event: 'cambio', payload: { col } });
+  }
+  canal.on('broadcast', { event: 'cambio' }, ({ payload }) => { if (subs[payload?.col]) cargar(payload.col).catch(onErr); });
+  canal.subscribe((st) => { if (st === 'SUBSCRIBED') Object.keys(subs).forEach((c) => cargar(c).catch(onErr)); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) Object.keys(subs).forEach((c) => cargar(c).catch(onErr)); });
+
+  const docRef = (col, id) => ({
+    onSnapshot(next, err) { if (err) onErr = err; suscribir(col, () => { const d = cache[col].get(id); next({ id, exists: !!d, data: () => d }); }); },
+    set: (data) => escribirFila(col, id, data),
+    update: (patch) => escribirFila(col, id, { ...(cache[col]?.get(id) || {}), ...patch }),
+    delete: () => borrarFila(col, id),
+  });
+  const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  return {
+    doc(p) { const [col, id] = p.split('/'); return docRef(col, id); },
+    collection(col) {
+      const consulta = (campo, dir) => ({
+        onSnapshot(next, err) {
+          if (err) onErr = err;
+          suscribir(col, () => {
+            const docs = [...cache[col]].map(([id, d]) => ({ id, exists: true, data: () => d }));
+            if (campo) docs.sort((a, b) => { const x = a.data()[campo], y = b.data()[campo]; const r = x < y ? -1 : x > y ? 1 : 0; return dir === 'desc' ? -r : r; });
+            next({ docs, size: docs.length, empty: !docs.length });
+          });
+        },
+      });
+      return { ...consulta(), orderBy: (c, d) => consulta(c, d), doc: (id) => docRef(col, id ?? nuevoId()), add: async (data) => { const id = nuevoId(); await escribirFila(col, id, data); return docRef(col, id); } };
+    },
+  };
+}
+
+(async () => {
+  const viaje = codigoViaje();
+  if (!viaje || !window.supabase) {
+    $('status').textContent = '';
+    aviso(viaje ? 'No se pudo conectar. Revisá internet y recargá.' : 'La cuenta regresiva funciona, pero para ver la lista compartida abrí el link completo que te pasaron por WhatsApp.');
+    bloquear(true); return;
+  }
+  if (location.hash) history.replaceState(null, '', location.pathname);
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { global: { headers: { 'x-viaje': viaje } }, auth: { persistSession: false } });
+  const db = crearDb(sb, viaje);
+  state.db = db; state.puedeEscribir = true;
+  const err = () => { $('status').textContent = 'Se cortó la conexión. Recargá la página.'; };
+  db.doc('config/main').onSnapshot((s) => { state.cfg = s.exists ? s.data() : {}; renderAll(); }, err);
+  db.doc('juego/misiones').onSnapshot((s) => { state.misiones = (s.exists && s.data().hechas) || {}; renderMision(); }, err);
+  db.doc('juego/bingo').onSnapshot((s) => { state.bingo = (s.exists && s.data().marcas) || {}; renderBingo(); }, err);
+  db.collection('extras').orderBy('creado').onSnapshot((q) => { state.extras = q.docs.map((d) => ({ id: d.id, ...d.data() })); renderExtras(); }, err);
+  db.collection('paradas').orderBy('fecha').onSnapshot((q) => { state.paradas = q.docs.map((d) => ({ id: d.id, ...d.data() })); renderItin(); }, err);
+  db.collection('valija').orderBy('orden').onSnapshot((q) => { state.items = q.docs.map((d) => ({ id: d.id, ...d.data() })); renderValija(); }, err);
+  db.collection('gastos').orderBy('creado', 'desc').onSnapshot((q) => { state.gastos = q.docs.map((d) => ({ id: d.id, ...d.data() })); renderGastos(); }, err);
+  $('status').textContent = 'Sincronizado: lo que carga uno, el otro lo ve al instante.';
+})();
+</script>
+</body>
+</html>
