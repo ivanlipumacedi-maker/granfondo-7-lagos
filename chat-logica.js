@@ -26,6 +26,16 @@
 
   const horaCorta = (iso) => new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Argentina/Buenos_Aires' });
 
-  const L = { REACCIONES, MAX_TEXTO, textoValido, resumen, fusionar, quitar, noLeidos, alternarReaccion, horaCorta };
+  const ultimoCreado = (lista) => lista.reduce((max, m) => Math.max(max, Date.parse(m.creado) || 0), 0);
+
+  // recientes = la última página que devolvió el servidor (tam = tamaño de página). Lo que el servidor
+  // ya no tiene en ese tramo (borrado mientras no escuchábamos) desaparece; lo más viejo cargado se conserva.
+  function reconciliar(lista, recientes, tam) {
+    if (recientes.length < tam) return [...recientes].sort(porFecha);
+    const corte = Math.min(...recientes.map((m) => Date.parse(m.creado)));
+    return [...lista.filter((m) => Date.parse(m.creado) < corte), ...recientes].sort(porFecha);
+  }
+
+  const L = { REACCIONES, MAX_TEXTO, textoValido, resumen, fusionar, quitar, noLeidos, alternarReaccion, horaCorta, ultimoCreado, reconciliar };
   if (typeof module !== 'undefined' && module.exports) module.exports = L; else g.ChatLogica = L;
 })(this);

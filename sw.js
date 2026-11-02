@@ -10,9 +10,8 @@ self.addEventListener('push', (e) => {
     if (d.tipo === 'cambio' || d.tipo === 'chat') {
       const ventanas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       const visibles = ventanas.filter((v) => v.visibilityState === 'visible');
-      // Mensajes de chat: solo se callan si estás mirando el chat abierto (#chat).
-      if (d.tipo === 'cambio' && visibles.length) return;
-      if (d.tipo === 'chat' && visibles.some((v) => v.url.endsWith('#chat'))) return;
+      // Con la app a la vista no se avisa: el chat/la franja ya lo muestran en vivo (con badge).
+      if (visibles.length) return;
     }
     await self.registration.showNotification(d.title || 'Rumbo al Sur', {
       body: d.body || '',

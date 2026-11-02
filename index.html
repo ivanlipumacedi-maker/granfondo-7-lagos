@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#1b2830">
 <meta property="og:title" content="Rumbo al Sur">
 <meta property="og:description" content="Lipu y Guti · jueves 19 de noviembre">
@@ -413,6 +413,7 @@ function renderHeader() {
   const opts = (sel) => ['A', 'B', 'AB'].map((k) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${k === 'AB' ? 'Cualquiera' : esc(n[k])}</option>`).join('');
   $('iQuien').innerHTML = opts('AB');
   window.repintarAvisos?.();
+  window.alCambiarSoyChat?.();
   $('gPago').innerHTML = ['A', 'B'].map((k) => `<option value="${k}" ${k === yo ? 'selected' : ''}>Pagó ${esc(n[k])}</option>`).join('');
 }
 $('soy').addEventListener('click', (e) => { const b = e.target.closest('[data-soy]'); if (!b) return; yo = b.dataset.soy; ls.set('soy', yo); renderAll(); window.alCambiarSoy?.(); window.alCambiarSoyChat?.(); });
@@ -739,7 +740,7 @@ function iniciarAvisos(sb, viaje) {
     aviso(viaje ? 'No se pudo conectar. Revisá internet y recargá.' : 'La cuenta regresiva funciona, pero para ver la lista compartida abrí el link completo que te pasaron por WhatsApp.');
     bloquear(true); return;
   }
-  if (location.hash && location.hash !== '#chat') history.replaceState(null, '', location.pathname);
+  if (location.hash && location.hash !== '#chat') history.replaceState(null, '', location.pathname + location.search);
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { global: { headers: { 'x-viaje': viaje } }, auth: { persistSession: false } });
   const db = crearDb(sb, viaje);
   state.db = db; state.puedeEscribir = true;

@@ -52,10 +52,12 @@
     const $ = (id) => document.getElementById(id);
     const otro = () => (yo() === 'A' ? 'B' : 'A');
     const CAMPOS = 'id,autor,tipo,texto,reacciones,creado';
-    let lista = [], hayMas = false, selId = null, timer = null;
+    let lista = [], hayMas = false, selId = null, timer = null, enviando = false;
+    const TAM = 50, tactil = matchMedia('(pointer: coarse)').matches;
+    const sinHash = () => location.pathname + location.search;
     if (!localStorage.getItem('chatVisto')) localStorage.setItem('chatVisto', String(Date.now()));
     const visto = () => Number(localStorage.getItem('chatVisto')) || 0;
-    const marcarVisto = () => localStorage.setItem('chatVisto', String(Date.now()));
+    const marcarVisto = () => { if (!document.hidden) localStorage.setItem('chatVisto', String(Math.max(visto(), L.ultimoCreado(lista)))); };
     const abierto = () => !$('chatPanel').hidden;
 
     const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
@@ -69,12 +71,12 @@
   <header><button type="button" id="chatCerrar" aria-label="Volver">←</button><div class="av" aria-hidden="true"></div><b class="nom"></b></header>
   <div id="chatLista"></div>
   <form id="chatForm" autocomplete="off">
-    <textarea id="chatTexto" rows="1" maxlength="${L.MAX_TEXTO}" placeholder="Mensaje" aria-label="Mensaje"></textarea>
+    <textarea id="chatTexto" rows="1" enterkeyhint="enter" maxlength="${L.MAX_TEXTO}" placeholder="Mensaje" aria-label="Mensaje"></textarea>
     <button type="submit" id="chatEnviar" aria-label="Enviar">➤</button>
   </form>
   <div id="chatAcciones" hidden>
     <div class="reac">${L.REACCIONES.map((r) => `<button type="button" data-reac="${r}" aria-label="Reaccionar ${r}">${r}</button>`).join('')}</div>
-    <div class="fila"><button type="button" class="btn ghost" id="chatBorrar" hidden>Borrar</button><button type="button" class="btn ghost" id="chatCancelar">Cancelar</button></div>
+    <div class="fila"><button type="button" class="btn ghost" id="chatCopiar">Copiar</button><button type="button" class="btn ghost" id="chatBorrar" hidden>Borrar</button><button type="button" class="btn ghost" id="chatCancelar">Cancelar</button></div>
   </div>
 </section>`);
 
@@ -116,14 +118,22 @@
     /* ---------- datos ---------- */
     const avisar = (accion, payload) => canal.send({ type: 'broadcast', event: 'chat', payload: { accion, ...payload } });
     async function cargar(antesDe) {
-      let q = sb.from('mensajes').select(CAMPOS).eq('viaje', viaje).order('creado', { ascending: false }).limit(50);
+      let q = sb.from('mensajes').select(CAMPOS).eq('viaje', viaje).order('creado', { ascending: false }).limit(TAM);
       if (antesDe) q = q.lt('creado', antesDe);
       const { data, error } = await q;
       if (error) { console.error(error); return; }
-      hayMas = data.length === 50;
-      for (const m of data) lista = L.fusionar(lista, m);
+      const cont = $('chatLista'), altoAntes = cont.scrollHeight, arriba = cont.scrollTop;
+      if (antesDe) { for (const m of data) lista = L.fusionar(lista, m); hayMas = data.length === TAM; }
+      else {
+        // ¿ya había cargado páginas más viejas que esta? entonces "hay más" lo decidió la paginación
+        const corte = data.length ? Date.parse(data[data.length - 1].creado) : 0;
+        const tieneViejos = lista.some((m) => Date.parse(m.creado) < corte);
+        hayMas = data.length < TAM ? false : (tieneViejos ? hayMas : true);
+        lista = L.reconciliar(lista, data, TAM);
+      }
       if (abierto()) marcarVisto();
       pintar();
+      if (antesDe) cont.scrollTop = arriba + (cont.scrollHeight - altoAntes); // que no salte al anteponer
     }
     canal.on('broadcast', { event: 'chat' }, ({ payload: p }) => {
       if (!p) return;
@@ -137,12 +147,16 @@
 
     async function enviar() {
       const t = $('chatTexto').value;
-      if (!L.textoValido(t)) return;
-      $('chatEnviar').disabled = true;
-      const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), texto: t.trim() }).select(CAMPOS).single();
-      $('chatEnviar').disabled = false;
-      if (error) { console.error(error); window.aviso?.('No se pudo mandar el mensaje. Revisá la conexión y probá de nuevo.'); return; }
+      if (enviando || !L.textoValido(t)) return;
+      enviando = true; $('chatEnviar').disabled = true;
       $('chatTexto').value = ''; autoAlto();
+      const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), texto: t.trim() }).select(CAMPOS).single();
+      enviando = false; $('chatEnviar').disabled = false;
+      if (error) {
+        console.error(error);
+        if (!$('chatTexto').value) { $('chatTexto').value = t; autoAlto(); }
+        window.aviso?.('No se pudo mandar el mensaje. Revisá la conexión y probá de nuevo.'); return;
+      }
       lista = L.fusionar(lista, data); marcarVisto();
       const cont = $('chatLista'); pintar(); cont.scrollTop = cont.scrollHeight;
       avisar('nuevo', { m: data });
@@ -156,17 +170,20 @@
       marcarVisto(); pintar();
       const cont = $('chatLista'); cont.scrollTop = cont.scrollHeight;
     }
-    function cerrarPanel() { cerrarAcciones(); $('chatPanel').hidden = true; document.documentElement.style.overflow = ''; marcarVisto(); pintar(); }
+    function cerrarPanel() { ocultarAcciones(); $('chatPanel').hidden = true; document.documentElement.style.overflow = ''; marcarVisto(); pintar(); }
     $('chatBarra').addEventListener('click', abrirPanel);
     $('chatBarra').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirPanel(); } });
-    $('chatCerrar').addEventListener('click', () => { if (history.state?.chat) history.back(); else { history.replaceState(null, '', location.pathname); cerrarPanel(); } });
-    window.addEventListener('popstate', () => { if (location.hash === '#chat') abrirPanel(); else if (abierto()) cerrarPanel(); });
+    $('chatCerrar').addEventListener('click', () => { if (history.state?.chat) history.back(); else { history.replaceState(null, '', sinHash()); cerrarPanel(); } });
+    window.addEventListener('popstate', () => {
+      if (!$('chatAcciones').hidden && !history.state?.acc) { ocultarAcciones(); if (location.hash === '#chat') return; }
+      if (location.hash === '#chat') abrirPanel(); else if (abierto()) cerrarPanel();
+    });
     navigator.serviceWorker?.addEventListener('message', (e) => { if (e.data?.abrir === 'chat') abrirPanel(); });
 
     /* ---------- escribir ---------- */
     function autoAlto() { const t = $('chatTexto'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 130) + 'px'; }
     $('chatTexto').addEventListener('input', autoAlto);
-    $('chatTexto').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });
+    $('chatTexto').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !tactil) { e.preventDefault(); enviar(); } });
     $('chatForm').addEventListener('submit', (e) => { e.preventDefault(); enviar(); });
 
     /* ---------- reacciones y borrar (mantener apretado) ---------- */
@@ -176,8 +193,10 @@
       document.querySelectorAll('#chatAcciones [data-reac]').forEach((b) => b.classList.toggle('mia', m.reacciones?.[yo()] === b.dataset.reac));
       const borrar = $('chatBorrar'); borrar.hidden = m.autor !== yo(); borrar.classList.remove('armed'); borrar.textContent = 'Borrar';
       $('chatAcciones').hidden = false;
+      history.pushState({ chat: 1, acc: 1 }, '', '#chat');
     }
-    function cerrarAcciones() { $('chatAcciones').hidden = true; if (selId) { selId = null; if (abierto()) pintarLista(); } }
+    function ocultarAcciones() { $('chatAcciones').hidden = true; if (selId) { selId = null; if (abierto()) pintarLista(); } }
+    function cerrarAcciones() { const habia = !$('chatAcciones').hidden; ocultarAcciones(); if (habia && history.state?.acc) history.back(); }
     const cancelarTimer = () => { clearTimeout(timer); timer = null; };
     $('chatLista').addEventListener('pointerdown', (e) => {
       const b = e.target.closest('.burbuja'); if (!b) return;
@@ -188,12 +207,13 @@
     $('chatLista').addEventListener('contextmenu', (e) => { const b = e.target.closest('.burbuja'); if (b) { e.preventDefault(); cancelarTimer(); abrirAcciones(b.dataset.id); } });
     $('chatLista').addEventListener('click', (e) => { if (e.target.id === 'chatMas') cargar(lista[0]?.creado); });
     $('chatCancelar').addEventListener('click', cerrarAcciones);
+    $('chatCopiar').addEventListener('click', () => { const m = lista.find((x) => x.id === selId); cerrarAcciones(); if (m?.texto) navigator.clipboard?.writeText(m.texto).catch(() => {}); });
     $('chatAcciones').addEventListener('click', async (e) => {
       const b = e.target.closest('[data-reac]'); if (!b || !selId) return;
       const id = selId, m = lista.find((x) => x.id === id); cerrarAcciones(); if (!m) return;
       const reacciones = L.alternarReaccion(m.reacciones, yo(), b.dataset.reac);
       lista = L.fusionar(lista, { ...m, reacciones }); pintar();
-      const { data, error } = await sb.from('mensajes').update({ reacciones }).eq('id', id).select(CAMPOS).single();
+      const { data, error } = await sb.rpc('reaccionar', { p_id: id, p_quien: yo(), p_emoji: b.dataset.reac });
       if (error) { console.error(error); lista = L.fusionar(lista, m); pintar(); window.aviso?.('No se pudo reaccionar. Probá de nuevo.'); return; }
       lista = L.fusionar(lista, data); pintar(); avisar('cambio', { m: data });
     });
@@ -208,6 +228,6 @@
 
     pintar();
     cargar();
-    if (location.hash === '#chat') { history.replaceState(null, '', location.pathname); abrirPanel(); }
+    if (location.hash === '#chat') { history.replaceState(null, '', sinHash()); abrirPanel(); }
   };
 })();
