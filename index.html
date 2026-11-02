@@ -300,6 +300,8 @@ body { margin: 0 }
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="chat-logica.js"></script>
+<script src="chat.js"></script>
 <script>
 const START = new Date('2026-10-29T00:00:00-03:00');
 const TRIP_DATE = '2026-11-19';
@@ -413,7 +415,7 @@ function renderHeader() {
   window.repintarAvisos?.();
   $('gPago').innerHTML = ['A', 'B'].map((k) => `<option value="${k}" ${k === yo ? 'selected' : ''}>Pagó ${esc(n[k])}</option>`).join('');
 }
-$('soy').addEventListener('click', (e) => { const b = e.target.closest('[data-soy]'); if (!b) return; yo = b.dataset.soy; ls.set('soy', yo); renderAll(); window.alCambiarSoy?.(); });
+$('soy').addEventListener('click', (e) => { const b = e.target.closest('[data-soy]'); if (!b) return; yo = b.dataset.soy; ls.set('soy', yo); renderAll(); window.alCambiarSoy?.(); window.alCambiarSoyChat?.(); });
 
 /* ---------- Pestañas ---------- */
 function showTab(t) {
@@ -662,6 +664,7 @@ function crearDb(sb, viaje) {
   });
   const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   return {
+    canal,
     doc(p) { const [col, id] = p.split('/'); return docRef(col, id); },
     collection(col) {
       const consulta = (campo, dir) => ({
@@ -736,11 +739,12 @@ function iniciarAvisos(sb, viaje) {
     aviso(viaje ? 'No se pudo conectar. Revisá internet y recargá.' : 'La cuenta regresiva funciona, pero para ver la lista compartida abrí el link completo que te pasaron por WhatsApp.');
     bloquear(true); return;
   }
-  if (location.hash) history.replaceState(null, '', location.pathname);
+  if (location.hash && location.hash !== '#chat') history.replaceState(null, '', location.pathname);
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { global: { headers: { 'x-viaje': viaje } }, auth: { persistSession: false } });
   const db = crearDb(sb, viaje);
   state.db = db; state.puedeEscribir = true;
   iniciarAvisos(sb, viaje);
+  if (window.iniciarChat) iniciarChat({ sb, canal: db.canal, viaje, yo: () => yo, nombres });
   const err = () => { $('status').textContent = 'Se cortó la conexión. Recargá la página.'; };
   db.doc('config/main').onSnapshot((s) => { state.cfg = s.exists ? s.data() : {}; renderAll(); }, err);
   db.doc('juego/misiones').onSnapshot((s) => { state.misiones = (s.exists && s.data().hechas) || {}; renderMision(); }, err);
