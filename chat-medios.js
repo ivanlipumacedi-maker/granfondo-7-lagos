@@ -77,6 +77,22 @@
     return new Promise((res) => c.toBlob((b) => res(b), 'image/webp', 0.85));
   }
 
+  /** Busca stickers en GIPHY (vacío = tendencias). Solo devuelve URLs de media*.giphy.com. Error('cuota') con 429, Error('red') si falla. */
+  const GIPHY_OK = /^https:\/\/media[0-9]*\.giphy\.com\//;
+  async function buscarGiphy(clave, q) {
+    const p = new URLSearchParams({ api_key: clave, limit: '24', rating: 'pg-13', lang: 'es' });
+    const t = String(q ?? '').trim();
+    if (t) p.set('q', t);
+    let r;
+    try { r = await fetch(`https://api.giphy.com/v1/stickers/${t ? 'search' : 'trending'}?${p}`); }
+    catch (e) { throw new Error('red'); }
+    if (r.status === 429) throw new Error('cuota');
+    if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'clave' : 'red');
+    const { data } = await r.json();
+    return (data || []).map((g) => { const im = g.images?.fixed_height || {}; return { id: g.id, url: im.webp || im.url, ancho: Number(im.width) || 200, alto: Number(im.height) || 200, titulo: g.title || 'Sticker' }; })
+      .filter((g) => g.url && GIPHY_OK.test(g.url));
+  }
+
   /** Grabadora de audio (webm/opus). iniciar() rechaza con Error('sin-permiso') si no hay micrófono. */
   function grabadora() {
     let rec = null, stream = null, partes = [], t0 = 0;
@@ -106,5 +122,5 @@
     };
   }
 
-  window.ChatMedios = { BUCKET, comprimirImagen, firmar, firmada, vigente, puedeFirmar, reintentarYa, rutaMini, recortarCuadrado, hacerSticker, grabadora };
+  window.ChatMedios = { BUCKET, comprimirImagen, firmar, firmada, vigente, puedeFirmar, reintentarYa, rutaMini, recortarCuadrado, hacerSticker, buscarGiphy, grabadora };
 })();

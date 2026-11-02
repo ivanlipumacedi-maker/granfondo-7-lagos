@@ -115,7 +115,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     const L = window.ChatLogica;
     const $ = (id) => document.getElementById(id);
     const otro = () => (yo() === 'A' ? 'B' : 'A');
-    const CAMPOS = 'id,autor,tipo,texto,reacciones,creado,archivo,ancho,alto,duracion_ms';
+    const CAMPOS = 'id,autor,tipo,texto,reacciones,creado,archivo,ancho,alto,duracion_ms,externo';
     const M = window.ChatMedios, medios = new Map(); // id → nodo de foto/audio, se reusa entre redibujos
     let presionLargaHasta = 0; // el click que sigue a una presión larga no abre el visor
     let lista = [], hayMas = false, selId = null, timer = null, enviando = false;
@@ -511,6 +511,32 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       avisar('nuevo', { m: data });
     }
     window.mandarStickerExterno = (url) => mandarSticker({ externo: url });
+
+    // GIPHY: búsqueda con debounce, sin reintentos automáticos (la cuota gratis es chica)
+    const panelG = document.querySelector('[data-spanel="giphy"]'), grillaG = panelG.querySelector('.grilla');
+    let ultimaQ = null, timerG = null, turnoG = 0;
+    const notaG = (t) => { const p = document.createElement('p'); p.className = 'nota'; p.style.gridColumn = '1 / -1'; p.textContent = t; grillaG.replaceChildren(p); };
+    async function buscarG(q) {
+      const clave = window.GIPHY_KEY;
+      if (!clave) return notaG('Falta configurar GIPHY.');
+      if (q === ultimaQ) return; ultimaQ = q;
+      const turno = ++turnoG; notaG('Buscando…');
+      try {
+        const res = await M.buscarGiphy(clave, q);
+        if (turno !== turnoG) return;
+        if (!res.length) return notaG('No encontré stickers para eso. Probá con otra palabra.');
+        grillaG.replaceChildren(...res.map((g) => { const d = document.createElement('div'); const i = document.createElement('img'); i.src = g.url; i.alt = g.titulo; i.loading = 'lazy'; i.draggable = false; i.dataset.externo = g.url; d.appendChild(i); return d; }));
+      } catch (e) {
+        if (turno !== turnoG) return;
+        ultimaQ = null; // se puede reintentar escribiendo de nuevo
+        notaG(e.message === 'cuota' ? 'Se alcanzó el límite de GIPHY por esta hora. Probá más tarde o usá "Nuestros".'
+          : e.message === 'clave' ? 'La clave de GIPHY no es válida.' : 'No se pudo conectar con GIPHY. Revisá la señal.');
+      }
+    }
+    window.alAbrirGiphy = () => { if (!window.GIPHY_KEY) return notaG('Falta configurar GIPHY.'); if (ultimaQ === null) buscarG($('giphyQ').value.trim()); };
+    $('giphyQ').addEventListener('input', () => { clearTimeout(timerG); timerG = setTimeout(() => buscarG($('giphyQ').value.trim()), 400); });
+    $('giphyQ').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(timerG); buscarG($('giphyQ').value.trim()); } });
+    grillaG.addEventListener('click', (e) => { const i = e.target.closest('img[data-externo]'); if (i) mandarSticker({ externo: i.dataset.externo }); });
     document.querySelector('[data-spanel="nuestros"] .grilla').addEventListener('click', async (e) => {
       if (e.target.id === 'stkEditar') { editando = !editando; return pintarNuestros(); }
       const q = e.target.closest('[data-quitar-stk]');
