@@ -59,6 +59,18 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
 #chatGrabando.soltar .cancelar { color: var(--danger, #d2453a); font-weight: 700 }
 @keyframes latido { 50% { opacity: .25 } }
 #chatEnviar.grabando { transform: scale(1.25); background: var(--danger, #d2453a) }
+.av { overflow: hidden }
+.av img, .seg button img { width: 100%; height: 100%; object-fit: cover; display: block }
+.seg button img { width: 22px; height: 22px; border-radius: 50%; display: inline-block; vertical-align: middle; margin: -3px 6px -3px -6px }
+#perfilBloque { display: flex; align-items: center; gap: 14px; margin: 4px 0 16px; flex-wrap: wrap }
+#perfilBloque .av { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 1.5rem; color: var(--bg) }
+#perfilBloque .acc { display: flex; gap: 8px; flex-wrap: wrap }
+#recorte { position: fixed; inset: 0; z-index: 70; background: rgba(8,12,14,.97); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 20px }
+#recorte[hidden] { display: none }
+#recorte canvas { width: min(300px, 80vw); height: min(300px, 80vw); border-radius: 50%; touch-action: none; cursor: grab; box-shadow: 0 0 0 3px var(--accent) }
+#recorte p { color: #fff; margin: 0; font-size: .9rem; opacity: .85 }
+#recorte input[type=range] { width: min(300px, 80vw) }
+#recorte .acc { display: flex; gap: 10px }
 #chatEnviar { touch-action: none; height: 42px; border-radius: 50%; border: 0; background: var(--accent); color: var(--bg); font-size: 1.1rem; flex: none }
 #chatEnviar:disabled { opacity: .5 }
 #chatAcciones { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
@@ -71,7 +83,7 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
 #chatBorrar.armed { background: var(--danger, #d2453a); border-color: var(--danger, #d2453a); color: #fff }
 `;
 
-  window.iniciarChat = function ({ sb, canal, viaje, yo, nombres }) {
+  window.iniciarChat = function ({ sb, canal, viaje, yo, nombres, db }) {
     const L = window.ChatLogica;
     const $ = (id) => document.getElementById(id);
     const otro = () => (yo() === 'A' ? 'B' : 'A');
@@ -115,7 +127,13 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
     /* ---------- pintar ---------- */
     function pintarCabeceras() {
       const n = nombres(), o = otro();
-      document.querySelectorAll('#chatBarra .av, #chatPanel .av').forEach((e) => { e.textContent = (n[o] || '?').trim().charAt(0).toUpperCase(); e.style.background = `var(--${o.toLowerCase()})`; });
+      document.querySelectorAll('#chatBarra .av, #chatPanel .av').forEach((e) => pintarAvatar(e, o));
+      pintarAvatar($('perfilAv'), yo());
+      document.querySelectorAll('#soy [data-soy]').forEach((b) => {
+        const url = avatarDe(b.dataset.soy), img = b.querySelector('img');
+        if (url && img?.dataset.u !== url) { const i = img || document.createElement('img'); i.alt = ''; i.src = url; i.dataset.u = url; if (!img) b.prepend(i); }
+        else if (!url && img) img.remove();
+      });
       document.querySelectorAll('#chatBarra .nom, #chatPanel .nom').forEach((e) => { e.textContent = n[o] || '?'; });
       const ult = lista[lista.length - 1];
       $('chatBarra').querySelector('.ult').textContent = ult ? (ult.autor === yo() ? 'Vos: ' : '') + L.resumen(ult) : `Escribile a ${n[o] || 'tu compañero'} 💬`;
@@ -146,6 +164,83 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
       if (alFondo) cont.scrollTop = cont.scrollHeight;
     }
     const pintar = () => { pintarCabeceras(); if (abierto()) pintarLista(); };
+
+    /* ---------- foto de perfil: doc perfil/<A|B> = { foto: path|null, v } ---------- */
+    const perfiles = { A: null, B: null };
+    function avatarDe(k) { const p = perfiles[k]?.foto; return p ? M.firmada(p) : null; }
+    window.avatarDe = avatarDe;
+    function pintarAvatar(el, k) {
+      if (!el) return;
+      const url = avatarDe(k), n = nombres();
+      el.style.background = `var(--${k.toLowerCase()})`;
+      const img = el.querySelector('img');
+      if (url) { if (img?.dataset.u !== url) { const i = document.createElement('img'); i.alt = ''; i.src = url; i.dataset.u = url; el.replaceChildren(i); } }
+      else { el.textContent = (n[k] || '?').trim().charAt(0).toUpperCase(); }
+    }
+    if (db) for (const k of ['A', 'B']) db.doc('perfil/' + k).onSnapshot((d) => {
+      perfiles[k] = d.exists ? d.data() : null;
+      const p = perfiles[k]?.foto;
+      if (p) M.firmar(sb, [p]).then(pintar).catch(console.error); else pintar();
+    });
+
+    const ajustes = document.querySelector('[data-p="ajustes"]');
+    ajustes?.querySelector('h3')?.insertAdjacentHTML('afterend', `
+<div id="perfilBloque"><div class="av" id="perfilAv" aria-hidden="true"></div>
+  <div><div style="font-weight:700">Tu foto</div><div class="hint">Se ve en el chat y en "Soy".</div>
+  <div class="acc" style="margin-top:8px"><label class="btn" id="fotoPerfilBtn" for="fotoPerfilInput">Elegir foto</label>
+  <button type="button" class="btn ghost" id="fotoPerfilQuitar">Quitar foto</button></div></div>
+  <input type="file" id="fotoPerfilInput" accept="image/*" hidden></div>`);
+    document.body.insertAdjacentHTML('beforeend', `
+<div id="recorte" hidden role="dialog" aria-label="Acomodá tu foto"><p>Arrastrá para acomodarla</p><canvas width="600" height="600"></canvas>
+  <input type="range" id="recorteZoom" min="1" max="4" step="0.01" value="1" aria-label="Zoom">
+  <div class="acc"><button type="button" class="btn ghost" id="recorteCancelar">Cancelar</button><button type="button" class="btn" id="recorteUsar">Usar esta foto</button></div></div>`);
+
+    let rc = null; // { bm, cx, cy, zoom }
+    function dibujarRecorte() {
+      const cv = document.querySelector('#recorte canvas'), { bm, zoom } = rc;
+      const corte = Math.min(bm.width, bm.height) / zoom;
+      rc.cx = Math.min(Math.max(corte / 2, rc.cx), bm.width - corte / 2); rc.cy = Math.min(Math.max(corte / 2, rc.cy), bm.height - corte / 2);
+      cv.getContext('2d').drawImage(bm, rc.cx - corte / 2, rc.cy - corte / 2, corte, corte, 0, 0, cv.width, cv.height);
+    }
+    const cerrarRecorte = () => { $('recorte').hidden = true; rc?.bm.close?.(); rc = null; };
+    $('fotoPerfilInput').addEventListener('change', async (e) => {
+      const file = e.target.files?.[0]; e.target.value = ''; if (!file) return;
+      try { const bm = await createImageBitmap(file, { imageOrientation: 'from-image' }); rc = { bm, cx: bm.width / 2, cy: bm.height / 2, zoom: 1 }; }
+      catch (err) { console.error(err); window.aviso?.('No se pudo abrir esa imagen.'); return; }
+      $('recorteZoom').value = 1; $('recorte').hidden = false; dibujarRecorte();
+      history.pushState({ recorte: 1 }, '');
+    });
+    $('recorteZoom').addEventListener('input', (e) => { if (rc) { rc.zoom = Number(e.target.value); dibujarRecorte(); } });
+    { const cv = document.querySelector('#recorte canvas'); let px = 0, py = 0, arrastrando = false;
+      cv.addEventListener('pointerdown', (e) => { arrastrando = true; px = e.clientX; py = e.clientY; cv.setPointerCapture(e.pointerId); });
+      cv.addEventListener('pointermove', (e) => {
+        if (!arrastrando || !rc) return;
+        const escala = (Math.min(rc.bm.width, rc.bm.height) / rc.zoom) / cv.getBoundingClientRect().width;
+        rc.cx -= (e.clientX - px) * escala; rc.cy -= (e.clientY - py) * escala; px = e.clientX; py = e.clientY; dibujarRecorte();
+      });
+      ['pointerup', 'pointercancel'].forEach((ev) => cv.addEventListener(ev, () => { arrastrando = false; })); }
+    $('recorteCancelar').addEventListener('click', () => { if (history.state?.recorte) history.back(); else cerrarRecorte(); });
+    window.addEventListener('popstate', () => { if (!$('recorte').hidden && !history.state?.recorte) cerrarRecorte(); });
+    $('recorteUsar').addEventListener('click', async () => {
+      if (!rc) return;
+      const b = $('recorteUsar'); b.disabled = true;
+      try {
+        const blob = await M.recortarCuadrado(rc.bm, { x: rc.cx, y: rc.cy, zoom: rc.zoom }, 400, 0.85);
+        const k = yo(), anterior = perfiles[k]?.foto, archivo = L.rutaArchivo(viaje, 'perfil', k + '-' + Date.now());
+        const up = await sb.storage.from(M.BUCKET).upload(archivo, blob, { contentType: blob.type });
+        if (up.error) throw up.error;
+        await M.firmar(sb, [archivo]);
+        await db.doc('perfil/' + k).set({ foto: archivo, v: Date.now() });
+        if (anterior) sb.storage.from(M.BUCKET).remove([anterior]);
+        if (history.state?.recorte) history.back(); else cerrarRecorte();
+      } catch (err) { console.error(err); window.aviso?.('No se pudo guardar la foto. Probá de nuevo.'); }
+      finally { b.disabled = false; }
+    });
+    $('fotoPerfilQuitar').addEventListener('click', async () => {
+      const k = yo(), anterior = perfiles[k]?.foto; if (!anterior) return;
+      try { await db.doc('perfil/' + k).set({ foto: null, v: Date.now() }); sb.storage.from(M.BUCKET).remove([anterior]); }
+      catch (err) { console.error(err); window.aviso?.('No se pudo quitar la foto.'); }
+    });
 
     /* ---------- fotos y audios ---------- */
     const porFirmar = new Set(); let firmando = false;

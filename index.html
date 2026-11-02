@@ -746,7 +746,7 @@ function iniciarAvisos(sb, viaje) {
   const db = crearDb(sb, viaje);
   state.db = db; state.puedeEscribir = true;
   iniciarAvisos(sb, viaje);
-  if (window.iniciarChat) iniciarChat({ sb, canal: db.canal, viaje, yo: () => yo, nombres });
+  if (window.iniciarChat) iniciarChat({ sb, canal: db.canal, viaje, yo: () => yo, nombres, db });
   const err = () => { $('status').textContent = 'Se cortó la conexión. Recargá la página.'; };
   db.doc('config/main').onSnapshot((s) => { state.cfg = s.exists ? s.data() : {}; renderAll(); }, err);
   db.doc('juego/misiones').onSnapshot((s) => { state.misiones = (s.exists && s.data().hechas) || {}; renderMision(); }, err);
