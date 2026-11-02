@@ -7,9 +7,12 @@ self.addEventListener('push', (e) => {
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
   e.waitUntil((async () => {
     // Si tenés la app abierta en pantalla, el cambio ya lo ves en vivo: no hace falta avisar.
-    if (d.tipo === 'cambio') {
+    if (d.tipo === 'cambio' || d.tipo === 'chat') {
       const ventanas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      if (ventanas.some((v) => v.visibilityState === 'visible')) return;
+      const visibles = ventanas.filter((v) => v.visibilityState === 'visible');
+      // Mensajes de chat: solo se callan si estás mirando el chat abierto (#chat).
+      if (d.tipo === 'cambio' && visibles.length) return;
+      if (d.tipo === 'chat' && visibles.some((v) => v.url.endsWith('#chat'))) return;
     }
     await self.registration.showNotification(d.title || 'Rumbo al Sur', {
       body: d.body || '',
@@ -24,10 +27,14 @@ self.addEventListener('push', (e) => {
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
+  const destino = self.registration.scope + (e.notification.tag === 'chat' ? '#chat' : '');
   e.waitUntil((async () => {
     const ventanas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const abierta = ventanas.find((v) => v.url.startsWith(self.registration.scope));
-    if (abierta) return abierta.focus();
-    return self.clients.openWindow(self.registration.scope);
+    if (abierta) {
+      if (e.notification.tag === 'chat' && !abierta.url.endsWith('#chat')) abierta.postMessage({ abrir: 'chat' });
+      return abierta.focus();
+    }
+    return self.clients.openWindow(destino);
   })());
 });
