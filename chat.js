@@ -44,7 +44,22 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
 #chatVisor { position: absolute; inset: 0; z-index: 3; background: rgba(0,0,0,.92); display: grid; place-items: center }
 #chatVisor[hidden] { display: none }
 #chatVisor img { max-width: 100%; max-height: 100%; object-fit: contain }
-#chatEnviar { width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--accent); color: var(--bg); font-size: 1.1rem; flex: none }
+.audio { display: flex; align-items: center; gap: 9px; min-width: min(230px, 60vw); padding: 6px 8px 2px }
+.audio .play { width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--ink); color: var(--bg); font-size: .95rem; flex: none }
+.msg.mio .audio .play { background: var(--bg); color: var(--ink) }
+.audio .avance { flex: 1; height: 4px; border-radius: 2px; background: color-mix(in srgb, currentColor 25%, transparent); overflow: hidden }
+.audio .avance i { display: block; height: 100%; width: 0; background: currentColor }
+.audio .dur { font-size: .78rem; min-width: 32px; text-align: right; font-variant-numeric: tabular-nums }
+#chatForm { position: relative }
+#chatGrabando { position: absolute; left: 10px; right: 60px; top: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 10px;
+  padding: 0 14px; border-radius: 20px; background: var(--bg); border: 1px solid var(--line); font-weight: 600 }
+#chatGrabando[hidden] { display: none }
+#chatGrabando .rec { width: 10px; height: 10px; border-radius: 50%; background: var(--danger, #d2453a); animation: latido 1s infinite }
+#chatGrabando .cancelar { margin-left: auto; color: var(--muted); font-weight: 400; font-size: .85rem }
+#chatGrabando.soltar .cancelar { color: var(--danger, #d2453a); font-weight: 700 }
+@keyframes latido { 50% { opacity: .25 } }
+#chatEnviar.grabando { transform: scale(1.25); background: var(--danger, #d2453a) }
+#chatEnviar { touch-action: none; height: 42px; border-radius: 50%; border: 0; background: var(--accent); color: var(--bg); font-size: 1.1rem; flex: none }
 #chatEnviar:disabled { opacity: .5 }
 #chatAcciones { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
   padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -10px 30px rgba(0,0,0,.35); z-index: 2 }
@@ -84,7 +99,8 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
   <form id="chatForm" autocomplete="off">
     <label class="adj" for="chatFoto" aria-label="Mandar foto">📷</label><input type="file" id="chatFoto" accept="image/*" hidden>
     <textarea id="chatTexto" rows="1" enterkeyhint="enter" maxlength="${L.MAX_TEXTO}" placeholder="Mensaje" aria-label="Mensaje"></textarea>
-    <button type="submit" id="chatEnviar" aria-label="Enviar">➤</button>
+    <button type="submit" id="chatEnviar" aria-label="Grabar audio">🎤</button>
+    <div id="chatGrabando" hidden><span class="rec"></span><span class="t">0:00</span><span class="cancelar">◀ deslizá para cancelar</span></div>
   </form>
   <div id="chatVisor" hidden role="dialog" aria-label="Foto"><img alt=""></div>
   <div id="chatAcciones" hidden>
@@ -160,7 +176,95 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
       img.dataset.id = m.id; ponerSrc(img, m);
       return img;
     }
-    function nodoAudio(m) { const d = document.createElement('div'); d.textContent = '🎤 Audio'; return d; } // se reemplaza en la Task 4
+    let sonando = null;
+    function nodoAudio(m) {
+      let d = medios.get(m.id);
+      if (!d) {
+        d = document.createElement('div'); d.className = 'audio';
+        const play = document.createElement('button'); play.type = 'button'; play.className = 'play'; play.textContent = '▶'; play.setAttribute('aria-label', 'Reproducir audio');
+        const av = document.createElement('div'); av.className = 'avance'; av.appendChild(document.createElement('i'));
+        const dur = document.createElement('span'); dur.className = 'dur';
+        const au = document.createElement('audio'); au.preload = 'metadata';
+        au.addEventListener('timeupdate', () => { const total = au.duration && isFinite(au.duration) ? au.duration * 1000 : Number(d.dataset.ms) || 1; av.firstChild.style.width = Math.min(100, (au.currentTime * 1000 / total) * 100) + '%'; dur.textContent = L.duracionTexto(au.currentTime * 1000); });
+        au.addEventListener('play', () => { play.textContent = '⏸'; play.setAttribute('aria-label', 'Pausar audio'); });
+        const parar = () => { play.textContent = '▶'; play.setAttribute('aria-label', 'Reproducir audio'); };
+        au.addEventListener('pause', parar);
+        au.addEventListener('ended', () => { parar(); au.currentTime = 0; av.firstChild.style.width = '0'; dur.textContent = L.duracionTexto(Number(d.dataset.ms)); });
+        d.append(play, av, dur, au); medios.set(m.id, d);
+      }
+      d.dataset.ms = m.duracion_ms || 0; d.dataset.id = m.id;
+      const au = d.querySelector('audio');
+      if (au.paused) d.querySelector('.dur').textContent = L.duracionTexto(m.duracion_ms);
+      ponerSrc(d, m);
+      return d;
+    }
+    function tocarAudio(d) {
+      const au = d.querySelector('audio');
+      if (!au.paused) return au.pause();
+      if (sonando && sonando !== au) sonando.pause();
+      sonando = au;
+      const m = lista.find((x) => x.id === d.dataset.id);
+      if (!au.getAttribute('src') && m) ponerSrc(d, m);
+      const ir = () => au.play().catch((e) => { console.error(e); window.aviso?.('No se pudo reproducir el audio.'); });
+      if (au.getAttribute('src')) ir(); else setTimeout(() => (au.getAttribute('src') ? ir() : null), 600);
+    }
+
+    /* ---------- grabar audio: mantener 🎤, soltar envía, deslizar a la izquierda cancela ---------- */
+    let rec = null, x0 = 0, cancelado = false, soltado = false, reloj = null;
+    const modoMic = () => !$('chatTexto').value.trim();
+    function actualizarBoton() {
+      const mic = modoMic(), b = $('chatEnviar');
+      b.textContent = mic ? '🎤' : '➤'; b.setAttribute('aria-label', mic ? 'Mantené apretado para grabar un audio' : 'Enviar');
+    }
+    $('chatTexto').addEventListener('input', actualizarBoton);
+    function terminarUi() { clearInterval(reloj); reloj = null; $('chatGrabando').hidden = true; $('chatGrabando').classList.remove('soltar'); $('chatEnviar').classList.remove('grabando'); }
+    $('chatEnviar').addEventListener('pointerdown', async (e) => {
+      if (!modoMic() || rec) return;
+      e.preventDefault();
+      try { $('chatEnviar').setPointerCapture(e.pointerId); } catch {}
+      x0 = e.clientX; cancelado = false; soltado = false;
+      const r = M.grabadora(); rec = r;
+      try { await r.iniciar(); }
+      catch (err) { rec = null; terminarUi(); window.aviso?.('Para mandar audios, permití el micrófono en Chrome (candado de la barra ▸ Micrófono).'); return; }
+      if (soltado || cancelado) { r.cancelar(); rec = null; return; }
+      navigator.vibrate?.(20);
+      $('chatEnviar').classList.add('grabando'); $('chatGrabando').hidden = false;
+      reloj = setInterval(() => {
+        $('chatGrabando').querySelector('.t').textContent = L.duracionTexto(r.ms());
+        if (r.ms() >= L.AUDIO_MAX_MS) finalizar(); // tope de 2 minutos: se manda solo
+      }, 200);
+    });
+    $('chatEnviar').addEventListener('pointermove', (e) => {
+      if (!rec || !reloj) return;
+      const lejos = e.clientX - x0 < -80;
+      $('chatGrabando').classList.toggle('soltar', lejos);
+      if (lejos && !cancelado) { cancelado = true; rec.cancelar(); rec = null; terminarUi(); navigator.vibrate?.([10, 40, 10]); }
+    });
+    async function finalizar() {
+      soltado = true;
+      const r = rec; if (!r) return; rec = null; terminarUi();
+      const res = await r.detener();
+      if (!res || cancelado || !L.audioValido(Math.min(res.ms, L.AUDIO_MAX_MS))) return;
+      enviarAudio(res.blob, Math.round(Math.min(res.ms, L.AUDIO_MAX_MS)));
+    }
+    ['pointerup', 'pointercancel'].forEach((ev) => $('chatEnviar').addEventListener(ev, () => { soltado = true; if (rec && reloj) finalizar(); }));
+    async function enviarAudio(blob, ms) {
+      const tmp = { id: 'tmp-a' + Date.now(), autor: yo(), tipo: 'audio', creado: new Date().toISOString(), reacciones: {}, subiendo: true, duracion_ms: ms, local: URL.createObjectURL(blob) };
+      lista = L.fusionar(lista, tmp); pintar(); $('chatLista').scrollTop = $('chatLista').scrollHeight;
+      try {
+        const archivo = L.rutaArchivo(viaje, 'audio', crypto.randomUUID());
+        const up = await sb.storage.from(M.BUCKET).upload(archivo, blob, { contentType: blob.type || 'audio/webm' });
+        if (up.error) throw up.error;
+        const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), tipo: 'audio', archivo, duracion_ms: ms }).select(CAMPOS).single();
+        if (error) { sb.storage.from(M.BUCKET).remove([archivo]); throw error; }
+        medios.delete(tmp.id);
+        lista = L.fusionar(L.quitar(lista, tmp.id), data); marcarVisto(); pintar();
+        avisar('nuevo', { m: data });
+      } catch (e) {
+        console.error(e); lista = L.quitar(lista, tmp.id); medios.delete(tmp.id); pintar();
+        window.aviso?.('No se pudo mandar el audio. Revisá la conexión y probá de nuevo.');
+      } finally { setTimeout(() => URL.revokeObjectURL(tmp.local), 30000); }
+    }
 
     async function enviarFoto(file) {
       if (!file) return;
@@ -227,12 +331,12 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
       const t = $('chatTexto').value;
       if (enviando || !L.textoValido(t)) return;
       enviando = true; $('chatEnviar').disabled = true;
-      $('chatTexto').value = ''; autoAlto();
+      $('chatTexto').value = ''; autoAlto(); actualizarBoton();
       const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), texto: t.trim() }).select(CAMPOS).single();
       enviando = false; $('chatEnviar').disabled = false;
       if (error) {
         console.error(error);
-        if (!$('chatTexto').value) { $('chatTexto').value = t; autoAlto(); }
+        if (!$('chatTexto').value) { $('chatTexto').value = t; autoAlto(); actualizarBoton(); }
         window.aviso?.('No se pudo mandar el mensaje. Revisá la conexión y probá de nuevo.'); return;
       }
       lista = L.fusionar(lista, data); marcarVisto();
@@ -263,7 +367,7 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
     function autoAlto() { const t = $('chatTexto'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 130) + 'px'; }
     $('chatTexto').addEventListener('input', autoAlto);
     $('chatTexto').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !tactil) { e.preventDefault(); enviar(); } });
-    $('chatForm').addEventListener('submit', (e) => { e.preventDefault(); enviar(); });
+    $('chatForm').addEventListener('submit', (e) => { e.preventDefault(); if (!modoMic()) enviar(); });
 
     /* ---------- reacciones y borrar (mantener apretado) ---------- */
     function abrirAcciones(id) {
@@ -287,6 +391,7 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
     $('chatLista').addEventListener('contextmenu', (e) => { const b = e.target.closest('.burbuja'); if (b) { e.preventDefault(); cancelarTimer(); abrirAcciones(b.dataset.id); } });
     $('chatLista').addEventListener('click', (e) => {
       if (e.target.id === 'chatMas') return cargar(lista[0]?.creado);
+      const pl = e.target.closest('.audio .play'); if (pl) return tocarAudio(pl.closest('.audio'));
       const f = e.target.closest('img.foto'); if (f && Date.now() > presionLargaHasta) abrirVisor(f.dataset.id);
     });
     $('chatCancelar').addEventListener('click', cerrarAcciones);
@@ -307,6 +412,7 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
       const { error } = await sb.from('mensajes').delete().eq('id', id);
       if (error) { console.error(error); window.aviso?.('No se pudo borrar. Probá de nuevo.'); return; }
       const borrado = lista.find((x) => x.id === id);
+      medios.get(id)?.querySelector?.('audio')?.pause();
       lista = L.quitar(lista, id); medios.delete(id); pintar(); avisar('borrado', { id });
       if (borrado?.archivo) sb.storage.from(M.BUCKET).remove([borrado.archivo]).then(({ error }) => { if (error) console.error(error); });
     });
