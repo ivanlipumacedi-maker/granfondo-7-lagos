@@ -117,6 +117,8 @@ button { cursor: pointer }
 .panel { display: flex; flex-direction: column; gap: 14px }
 .panel h3 { font-size: 1.5rem }
 .hint { color: var(--muted); margin: 0; font-size: .9rem }
+.avisos { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; margin-top: 12px; font-size: .9rem; color: var(--muted) }
+.avisos .hint { font-size: .85rem }
 .notice { background: var(--ocre-soft); border-radius: 10px; padding: 10px 14px; font-size: .9rem }
 
 /* Formularios */
@@ -194,6 +196,7 @@ body { margin: 0 }
     </div>
     <div class="who">Soy <span class="seg" id="soy"></span></div>
   </header>
+  <div class="avisos" id="avisos" hidden></div>
 
   <section class="count" aria-label="Cuenta regresiva">
     <div class="eyebrow" id="countLbl">Faltan para arrancar</div>
@@ -407,9 +410,10 @@ function renderHeader() {
   $('soy').innerHTML = ['A', 'B'].map((k) => `<button type="button" data-soy="${k}" aria-pressed="${yo === k}">${esc(n[k])}</button>`).join('');
   const opts = (sel) => ['A', 'B', 'AB'].map((k) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${k === 'AB' ? 'Cualquiera' : esc(n[k])}</option>`).join('');
   $('iQuien').innerHTML = opts('AB');
+  window.repintarAvisos?.();
   $('gPago').innerHTML = ['A', 'B'].map((k) => `<option value="${k}" ${k === yo ? 'selected' : ''}>Pagó ${esc(n[k])}</option>`).join('');
 }
-$('soy').addEventListener('click', (e) => { const b = e.target.closest('[data-soy]'); if (!b) return; yo = b.dataset.soy; ls.set('soy', yo); renderAll(); });
+$('soy').addEventListener('click', (e) => { const b = e.target.closest('[data-soy]'); if (!b) return; yo = b.dataset.soy; ls.set('soy', yo); renderAll(); window.alCambiarSoy?.(); });
 
 /* ---------- Pestañas ---------- */
 function showTab(t) {
@@ -533,6 +537,55 @@ $('fCfg').addEventListener('submit', async (e) => {
   $('cfgMsg').textContent = ok ? 'Guardado. Los dos ven el cambio al instante.' : '';
 });
 
+/* ---------- Avisos: cada cambio contado en una frase (va después del nombre de quien lo hizo) ---------- */
+const comillas = (t) => { const x = String(t ?? '').trim(); return `«${x.length > 60 ? x.slice(0, 57) + '…' : x}»`; };
+function describirCambio(col, id, a, d) {
+  const n = nombres();
+  if (col === 'config') return 'cambió los ajustes del viaje';
+  if (col === 'juego' && id === 'misiones') {
+    const ha = a?.hechas || {}, hd = d?.hechas || {};
+    for (const k of Object.keys(hd)) if (!ha[k]) return `cumplió la misión del día ${+k + 1}: ${comillas(MISIONES[k])}`;
+    for (const k of Object.keys(ha)) if (!hd[k]) return `desmarcó la misión del día ${+k + 1}`;
+    return null;
+  }
+  if (col === 'juego' && id === 'bingo') {
+    const ma = a?.marcas || {}, md = d?.marcas || {};
+    for (const k of new Set([...Object.keys(ma), ...Object.keys(md)])) {
+      if (ma[k] === md[k]) continue;
+      const cosa = comillas(BINGO[k]?.[1]);
+      if (!md[k]) return `desmarcó ${cosa} en el bingo`;
+      return md[k] === yo ? `marcó ${cosa} en el bingo` : `le dio ${cosa} a ${n[md[k]]} en el bingo`;
+    }
+    return null;
+  }
+  if (col === 'extras') {
+    if (!d) return `borró la misión extra ${comillas(a?.texto)}`;
+    if (!a) return `propuso una misión extra: ${comillas(d.texto)}`;
+    if (!a.hecha && d.hecha) return `cumplió la misión extra ${comillas(d.texto)}`;
+    if (a.hecha && !d.hecha) return `desmarcó la misión extra ${comillas(d.texto)}`;
+    return null;
+  }
+  if (col === 'paradas') {
+    if (!d) return `sacó ${comillas(a?.lugar)} del itinerario`;
+    if (!a) return `agregó ${comillas(d.lugar)} al itinerario`;
+    return `editó ${comillas(d.lugar)} en el itinerario`;
+  }
+  if (col === 'valija') {
+    if (!d) return `sacó ${comillas(a?.texto)} de la valija`;
+    if (!a) return `agregó ${comillas(d.texto)} a la valija`;
+    if (!a.listo && d.listo) return `marcó ${comillas(d.texto)} como listo`;
+    if (a.listo && !d.listo) return `desmarcó ${comillas(d.texto)} en la valija`;
+    if (a.quien !== d.quien) return d.quien === 'AB' ? `dejó ${comillas(d.texto)} para cualquiera de los dos` : d.quien === yo ? `se anotó ${comillas(d.texto)} en la valija` : `le asignó ${comillas(d.texto)} a ${n[d.quien]}`;
+    return null;
+  }
+  if (col === 'gastos') {
+    if (!d) return `borró el gasto ${comillas(a?.desc)}`;
+    if (!a) return `anotó un gasto: ${comillas(d.desc)} por ${peso.format(Number(d.monto) || 0)}`;
+    return null;
+  }
+  return null;
+}
+
 /* ---------- Datos compartidos ---------- */
 async function escribir(fn) {
   if (!state.db) return false;
@@ -551,6 +604,7 @@ renderAll(); setInterval(tick, 1000);
 /* ---------- Datos compartidos en Supabase ---------- */
 const SUPABASE_URL = 'https://olsurumbzcgoyvyngvqi.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Oe7M1b2Y9ovMGCZB1LfQpQ_T_QeIQvu';
+const VAPID_PUBLICA = 'BBscF0huUoOBNvW3-4_FFftCzedB0TirR81uKCSbE50yxsCSlA84_SdhRkXFup1Bci_SAUNuP_Sx-BHjPu2T1cQ';
 
 function codigoViaje() {
   const h = location.hash.replace(/^#/, '').replace(/^v=/, '');
@@ -574,17 +628,27 @@ function crearDb(sb, viaje) {
     if (cache[col]) fn(); else if (!cargando[col]) cargando[col] = cargar(col).catch(onErr);
   }
   let onErr = () => {};
+  function avisarCambio(col, id, antes, despues) {
+    let texto = null; try { texto = describirCambio(col, id, antes, despues); } catch (e) { console.error(e); }
+    if (!texto) return;
+    const nombre = String(nombres()[yo] || '?').slice(0, 40);
+    sb.from('eventos').insert({ viaje, autor: yo, nombre, texto: texto.slice(0, 200) }).then(({ error }) => { if (error) console.error(error); });
+  }
   async function escribirFila(col, id, data) {
+    const antes = cache[col]?.get(id);
     (cache[col] = cache[col] || new Map()).set(id, data); avisar(col);
     const { error } = await sb.from('docs').upsert({ viaje, col, id, data, updated_at: new Date().toISOString() });
     if (error) { await cargar(col); throw error; }
     canal.send({ type: 'broadcast', event: 'cambio', payload: { col } });
+    avisarCambio(col, id, antes, data);
   }
   async function borrarFila(col, id) {
+    const antes = cache[col]?.get(id);
     cache[col]?.delete(id); avisar(col);
     const { error } = await sb.from('docs').delete().eq('viaje', viaje).eq('col', col).eq('id', id);
     if (error) { await cargar(col); throw error; }
     canal.send({ type: 'broadcast', event: 'cambio', payload: { col } });
+    avisarCambio(col, id, antes, null);
   }
   canal.on('broadcast', { event: 'cambio' }, ({ payload }) => { if (subs[payload?.col]) cargar(payload.col).catch(onErr); });
   canal.subscribe((st) => { if (st === 'SUBSCRIBED') Object.keys(subs).forEach((c) => cargar(c).catch(onErr)); });
@@ -615,6 +679,56 @@ function crearDb(sb, viaje) {
   };
 }
 
+/* ---------- Avisos push ---------- */
+function iniciarAvisos(sb, viaje) {
+  const el = $('avisos');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+  let reg = null;
+  const clave = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - s.length % 4) % 4)), (c) => c.charCodeAt(0));
+  async function guardar(sub) {
+    const j = sub.toJSON();
+    const { error } = await sb.from('push_subs').upsert({ endpoint: j.endpoint, viaje, quien: yo, p256dh: j.keys.p256dh, auth: j.keys.auth });
+    if (error) throw error;
+  }
+  async function pintar() {
+    if (!reg) return;
+    const sub = await reg.pushManager.getSubscription();
+    el.hidden = false;
+    if (Notification.permission === 'denied') el.innerHTML = '<span>🔕 Chrome tiene bloqueados los avisos de esta página. Se activan tocando el candado de la barra ▸ Notificaciones.</span>';
+    else if (sub && Notification.permission === 'granted') el.innerHTML = '<span>🔔 Avisos activados para ' + esc(nombres()[yo]) + '.</span> <button class="link" type="button" id="avisosOff">Desactivar</button>';
+    else el.innerHTML = '<button class="btn" type="button" id="avisosOn">🔔 Activar avisos</button> <span class="hint">Un recordatorio al mediodía y un aviso cuando el otro cambie algo.</span>';
+  }
+  el.addEventListener('click', async (e) => {
+    const b = e.target.closest('button'); if (!b || !reg) return;
+    b.disabled = true;
+    try {
+      if (b.id === 'avisosOn') {
+        if (await Notification.requestPermission() === 'granted') {
+          const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: clave(VAPID_PUBLICA) });
+          await guardar(sub);
+        }
+      } else if (b.id === 'avisosOff') {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) { await sb.from('push_subs').delete().eq('endpoint', sub.endpoint); await sub.unsubscribe(); }
+      }
+    } catch (err) { console.error(err); aviso('No se pudieron cambiar los avisos. Revisá la conexión y probá de nuevo.'); }
+    pintar();
+  });
+  // Al cambiar "Soy", la suscripción pasa a la otra persona (para no avisarte tus propios cambios)
+  const resincronizar = async () => {
+    if (!reg) return;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub && Notification.permission === 'granted') await guardar(sub).catch(console.error);
+    pintar();
+  };
+  window.alCambiarSoy = resincronizar;
+  window.repintarAvisos = () => { pintar().catch(console.error); };
+  navigator.serviceWorker.register('sw.js')
+    .then(() => navigator.serviceWorker.ready)
+    .then((r) => { reg = r; return resincronizar(); })
+    .catch(console.error);
+}
+
 (async () => {
   const viaje = codigoViaje();
   if (!viaje || !window.supabase) {
@@ -626,6 +740,7 @@ function crearDb(sb, viaje) {
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { global: { headers: { 'x-viaje': viaje } }, auth: { persistSession: false } });
   const db = crearDb(sb, viaje);
   state.db = db; state.puedeEscribir = true;
+  iniciarAvisos(sb, viaje);
   const err = () => { $('status').textContent = 'Se cortó la conexión. Recargá la página.'; };
   db.doc('config/main').onSnapshot((s) => { state.cfg = s.exists ? s.data() : {}; renderAll(); }, err);
   db.doc('juego/misiones').onSnapshot((s) => { state.misiones = (s.exists && s.data().hechas) || {}; renderMision(); }, err);
