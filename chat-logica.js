@@ -46,8 +46,17 @@
   const AUDIO_MIN_MS = 700, AUDIO_MAX_MS = 120000;
   const audioValido = (ms) => ms >= AUDIO_MIN_MS && ms <= AUDIO_MAX_MS;
   const textoSticker = (s) => String(s ?? '').trim().toUpperCase().slice(0, 30);
+  const externoValido = (u) => typeof u === 'string' && /^https:\/\/media[0-9]*\.giphy\.com\//.test(u);
+  // texto del sticker en 1 o 2 líneas, cortando por palabras (~16 caracteres la primera)
+  function lineasSticker(s, max = 16) {
+    const palabras = textoSticker(s).split(/\s+/).filter(Boolean);
+    if (!palabras.length) return [];
+    let primera = palabras[0], i = 1;
+    while (i < palabras.length && (primera + ' ' + palabras[i]).length <= max) primera += ' ' + palabras[i++];
+    return i < palabras.length ? [primera, palabras.slice(i).join(' ')] : [primera];
+  }
 
   const L = { REACCIONES, MAX_TEXTO, textoValido, resumen, fusionar, quitar, noLeidos, alternarReaccion, horaCorta, ultimoCreado, reconciliar,
-    escalar, duracionTexto, rutaArchivo, AUDIO_MIN_MS, AUDIO_MAX_MS, audioValido, textoSticker };
+    escalar, duracionTexto, rutaArchivo, AUDIO_MIN_MS, AUDIO_MAX_MS, audioValido, textoSticker, externoValido, lineasSticker };
   if (typeof module !== 'undefined' && module.exports) module.exports = L; else g.ChatLogica = L;
 })(this);

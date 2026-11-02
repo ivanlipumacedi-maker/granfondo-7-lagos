@@ -316,9 +316,18 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     }
     function nodoSticker(m) {
       let img = medios.get(m.id);
-      if (!img) { img = document.createElement('img'); img.className = 'stk'; img.alt = 'Sticker'; img.loading = 'lazy'; img.draggable = false; medios.set(m.id, img); }
+      if (!img) {
+        img = document.createElement('img'); img.className = 'stk'; img.alt = 'Sticker'; img.loading = 'lazy'; img.draggable = false;
+        img.addEventListener('error', () => {
+          const mm = lista.find((x) => x.id === img.dataset.id); if (!mm?.archivo || img.dataset.reintento) return;
+          img.dataset.reintento = '1'; img.removeAttribute('src'); M.reintentarYa(); pedirFirma(mm.archivo);
+        });
+        img.addEventListener('load', () => { delete img.dataset.reintento; });
+        medios.set(m.id, img);
+      }
       img.dataset.id = m.id;
-      if (m.externo) { if (img.getAttribute('src') !== m.externo) img.src = m.externo; } else ponerSrc(img, m);
+      if (m.externo) { if (L.externoValido(m.externo) && img.getAttribute('src') !== m.externo) img.src = m.externo; } // lo que llega por broadcast también se valida
+      else ponerSrc(img, m);
       return img;
     }
     function nodoFoto(m) {
@@ -541,10 +550,10 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       if (e.target.id === 'stkEditar') { editando = !editando; return pintarNuestros(); }
       const q = e.target.closest('[data-quitar-stk]');
       if (q) {
-        const st = stickers.find((x) => x.id === q.dataset.quitarStk); if (!st) return;
-        await db.doc('stickers/' + st.id).delete().catch(console.error);
-        const { data: usos } = await sb.from('mensajes').select('id').eq('archivo', st.archivo).limit(1);
-        if (!usos?.length) sb.storage.from(M.BUCKET).remove([st.archivo]); // si algún mensaje lo usa, el archivo queda
+        // Doble toque, como borrar un mensaje. El archivo nunca se borra: lo pueden estar usando mensajes (pesa ~30 KB).
+        if (!q.classList.contains('armed')) { q.classList.add('armed'); q.textContent = '?'; setTimeout(() => { q.classList.remove('armed'); q.textContent = '✕'; }, 3000); return; }
+        try { await db.doc('stickers/' + q.dataset.quitarStk).delete(); }
+        catch (err) { console.error(err); window.aviso?.('No se pudo quitar el sticker. Probá de nuevo.'); }
         return;
       }
       const img = e.target.closest('img[data-archivo]'); if (img && !editando) mandarSticker({ archivo: img.dataset.archivo });
@@ -557,18 +566,16 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
   <input type="range" id="stickerZoom" min="1" max="4" step="0.01" value="1" aria-label="Zoom">
   <input type="text" id="stickerTexto" maxlength="30" placeholder="Texto (opcional)" aria-label="Texto del sticker">
   <div class="acc"><button type="button" class="btn ghost" id="stickerCancelar">Cancelar</button><button type="button" class="btn" id="stickerGuardar">Guardar y mandar</button></div></div>`);
-    let dibujando = false, otraVez = false;
-    async function dibujarEd() {
-      if (!ed) return;
-      if (dibujando) { otraVez = true; return; } // se redibuja al terminar, con el último estado
-      dibujando = true; otraVez = false;
-      const corte = Math.min(ed.bm.width, ed.bm.height) / ed.zoom;
-      ed.cx = Math.min(Math.max(corte / 2, ed.cx), ed.bm.width - corte / 2); ed.cy = Math.min(Math.max(corte / 2, ed.cy), ed.bm.height - corte / 2);
-      const blob = await M.hacerSticker(ed.bm, { x: ed.cx, y: ed.cy, zoom: ed.zoom }, $('stickerTexto').value);
-      const bm = await createImageBitmap(blob); const cv = document.querySelector('#stickerEditor canvas'), g = cv.getContext('2d');
-      g.clearRect(0, 0, cv.width, cv.height); g.drawImage(bm, 0, 0); bm.close?.();
-      dibujando = false;
-      if (otraVez) dibujarEd();
+    let cuadro = 0;
+    function dibujarEd() { // un dibujo por frame, directo en el canvas
+      if (!ed || cuadro) return;
+      cuadro = requestAnimationFrame(() => {
+        cuadro = 0; if (!ed) return;
+        const corte = Math.min(ed.bm.width, ed.bm.height) / ed.zoom;
+        ed.cx = Math.min(Math.max(corte / 2, ed.cx), ed.bm.width - corte / 2); ed.cy = Math.min(Math.max(corte / 2, ed.cy), ed.bm.height - corte / 2);
+        const cv = document.querySelector('#stickerEditor canvas');
+        M.pintarSticker(cv.getContext('2d'), ed.bm, { x: ed.cx, y: ed.cy, zoom: ed.zoom }, $('stickerTexto').value, cv.width);
+      });
     }
     const cerrarEditor = () => { $('stickerEditor').hidden = true; ed?.bm.close?.(); ed = null; };
     $('stickerInput').addEventListener('change', async (e) => {
@@ -591,11 +598,12 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     $('stickerCancelar').addEventListener('click', () => { if (history.state?.stked) history.back(); else cerrarEditor(); });
     $('stickerGuardar').addEventListener('click', async () => {
       if (!ed) return; const b = $('stickerGuardar'); b.disabled = true;
-      const archivo = L.rutaArchivo(viaje, 'sticker', crypto.randomUUID());
+      const miEd = ed, archivo = L.rutaArchivo(viaje, 'sticker', crypto.randomUUID());
       try {
         const blob = await M.hacerSticker(ed.bm, { x: ed.cx, y: ed.cy, zoom: ed.zoom }, $('stickerTexto').value);
-        const up = await sb.storage.from(M.BUCKET).upload(archivo, blob, { contentType: 'image/webp' });
+        const up = await sb.storage.from(M.BUCKET).upload(archivo, blob, { contentType: blob.type });
         if (up.error) throw up.error;
+        if (ed !== miEd) { sb.storage.from(M.BUCKET).remove([archivo]); return; } // apretó atrás mientras subía: se cancela
         const id = archivo.split('/').pop().replace('.webp', '');
         try { await db.doc('stickers/' + id).set({ archivo, autor: yo(), creado: Date.now() }); }
         catch (err) { sb.storage.from(M.BUCKET).remove([archivo]); throw err; }
@@ -739,7 +747,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       const borrado = lista.find((x) => x.id === id);
       medios.get(id)?.querySelector?.('audio')?.pause();
       lista = L.quitar(lista, id); medios.delete(id); pintar(); avisar('borrado', { id });
-      if (borrado?.archivo) sb.storage.from(M.BUCKET).remove(borrado.tipo === 'foto' ? [borrado.archivo, M.rutaMini(borrado.archivo)] : [borrado.archivo]).then(({ error }) => { if (error) console.error(error); });
+      if (borrado?.archivo && borrado.tipo !== 'sticker') sb.storage.from(M.BUCKET).remove(borrado.tipo === 'foto' ? [borrado.archivo, M.rutaMini(borrado.archivo)] : [borrado.archivo]).then(({ error }) => { if (error) console.error(error); });
     });
 
     pintar();

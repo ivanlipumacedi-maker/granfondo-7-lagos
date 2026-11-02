@@ -59,22 +59,29 @@
   }
 
   /** Sticker 512×512: recorte cuadrado con esquinas redondeadas (fondo transparente) y texto opcional abajo. */
-  async function hacerSticker(bm, { x, y, zoom }, texto, lado = 512) {
+  /** Dibuja el sticker en un canvas (sincrónico: lo usa la vista previa en cada movimiento, sin codificar). */
+  function pintarSticker(g, bm, { x, y, zoom }, texto, lado) {
     const corte = Math.min(bm.width, bm.height) / Math.max(1, zoom);
     const sx = Math.min(Math.max(0, x - corte / 2), bm.width - corte), sy = Math.min(Math.max(0, y - corte / 2), bm.height - corte);
-    const c = document.createElement('canvas'); c.width = lado; c.height = lado;
-    const g = c.getContext('2d');
-    g.save(); g.beginPath(); g.roundRect(0, 0, lado, lado, 48); g.clip();
+    const r = lado * 48 / 512;
+    g.clearRect(0, 0, lado, lado);
+    g.save(); g.beginPath(); g.roundRect(0, 0, lado, lado, r); g.clip();
     g.drawImage(bm, sx, sy, corte, corte, 0, 0, lado, lado); g.restore();
-    const t = L.textoSticker(texto);
-    if (t) {
-      let tam = 72; g.font = `900 ${tam}px system-ui, sans-serif`;
-      while (g.measureText(t).width > lado - 40 && tam > 28) { tam -= 4; g.font = `900 ${tam}px system-ui, sans-serif`; }
-      g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.lineJoin = 'round';
-      g.lineWidth = Math.max(6, tam / 7); g.strokeStyle = '#000'; g.fillStyle = '#fff';
-      g.strokeText(t, lado / 2, lado - 34); g.fillText(t, lado / 2, lado - 34);
-    }
-    return new Promise((res) => c.toBlob((b) => res(b), 'image/webp', 0.85));
+    const lineas = L.lineasSticker(texto);
+    if (!lineas.length) return;
+    const ancho = lado - lado * 40 / 512, larga = lineas.reduce((a, b) => (b.length > a.length ? b : a));
+    let tam = lado * 72 / 512; g.font = `900 ${tam}px system-ui, sans-serif`;
+    while (g.measureText(larga).width > ancho && tam > lado * 16 / 512) { tam -= 2; g.font = `900 ${tam}px system-ui, sans-serif`; }
+    g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.lineJoin = 'round';
+    g.lineWidth = Math.max(4, tam / 7); g.strokeStyle = '#000'; g.fillStyle = '#fff';
+    const base = lado - lado * 34 / 512, alto = tam * 1.05;
+    lineas.forEach((t, i) => { const yy = base - (lineas.length - 1 - i) * alto; g.strokeText(t, lado / 2, yy); g.fillText(t, lado / 2, yy); });
+  }
+  /** Sticker 512×512 (WebP con transparencia; JPEG si el navegador no codifica WebP). */
+  async function hacerSticker(bm, pos, texto, lado = 512) {
+    const c = document.createElement('canvas'); c.width = lado; c.height = lado;
+    pintarSticker(c.getContext('2d'), bm, pos, texto, lado);
+    return aBlob(c, 0.85);
   }
 
   /** Busca stickers en GIPHY (vacío = tendencias). Solo devuelve URLs de media*.giphy.com. Error('cuota') con 429, Error('red') si falla. */
@@ -122,5 +129,5 @@
     };
   }
 
-  window.ChatMedios = { BUCKET, comprimirImagen, firmar, firmada, vigente, puedeFirmar, reintentarYa, rutaMini, recortarCuadrado, hacerSticker, buscarGiphy, grabadora };
+  window.ChatMedios = { BUCKET, comprimirImagen, firmar, firmada, vigente, puedeFirmar, reintentarYa, rutaMini, recortarCuadrado, hacerSticker, pintarSticker, buscarGiphy, grabadora };
 })();
