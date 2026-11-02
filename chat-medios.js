@@ -22,19 +22,32 @@
     return { blob, ancho, alto, tipo: blob.type };
   }
 
-  /** URLs firmadas con caché; se renuevan cuando faltan menos de 5 minutos. */
-  const cache = new Map();
+  /** URLs firmadas con caché; se renuevan cuando faltan menos de 5 minutos.
+   *  Sin red: backoff global (no se reintenta hasta reintentarYa() o 30 s). Ruta inexistente: no se repide. */
+  const cache = new Map(), rotas = new Set();
+  let esperarHasta = 0;
+  const BACKOFF_MS = 30 * 1000;
+  const vigente = (p) => (cache.get(p)?.vence ?? 0) - Date.now() > MARGEN_MS;
+  const puedeFirmar = (p) => !!p && !rotas.has(p) && Date.now() >= esperarHasta;
+  const reintentarYa = () => { esperarHasta = 0; };
   async function firmar(sb, paths) {
-    const ahora = Date.now();
-    const faltan = [...new Set(paths)].filter((p) => p && !(cache.get(p)?.vence - ahora > MARGEN_MS));
+    const faltan = [...new Set(paths)].filter((p) => p && !vigente(p) && !rotas.has(p));
     if (faltan.length) {
-      const { data, error } = await sb.storage.from(BUCKET).createSignedUrls(faltan, VIDA_S);
-      if (error) throw error;
-      for (const d of data || []) if (d.signedUrl && !d.error) cache.set(d.path, { url: d.signedUrl, vence: ahora + VIDA_S * 1000 });
+      if (Date.now() < esperarHasta) throw new Error('esperando para reintentar firmas');
+      let res;
+      try { res = await sb.storage.from(BUCKET).createSignedUrls(faltan, VIDA_S); }
+      catch (e) { esperarHasta = Date.now() + BACKOFF_MS; throw e; }
+      if (res.error) { esperarHasta = Date.now() + BACKOFF_MS; throw res.error; }
+      const ahora = Date.now();
+      for (const d of res.data || []) {
+        if (d.signedUrl && !d.error) cache.set(d.path, { url: d.signedUrl, vence: ahora + VIDA_S * 1000 });
+        else if (d.path) rotas.add(d.path);
+      }
     }
-    return new Map(paths.filter((p) => cache.has(p)).map((p) => [p, cache.get(p).url]));
+    return new Map(paths.filter((p) => firmada(p)).map((p) => [p, firmada(p)]));
   }
-  const firmada = (p) => cache.get(p)?.url || null;
+  const firmada = (p) => { const c = cache.get(p); return c && c.vence > Date.now() ? c.url : null; };
+  const rutaMini = (p) => p.replace(/\.webp$/, '.t.webp');
 
   /** Recorta un cuadrado de lado×lado. x, y = centro del recorte en px de la imagen; zoom ≥ 1 sobre el lado corto. */
   async function recortarCuadrado(bm, { x, y, zoom }, lado = 400, calidad = 0.85) {
@@ -52,9 +65,12 @@
     const soltar = () => { stream?.getTracks().forEach((t) => t.stop()); stream = null; };
     return {
       async iniciar() {
+        if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw new Error('sin-soporte');
         try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
-        catch (e) { throw new Error('sin-permiso'); }
-        partes = []; rec = new MediaRecorder(stream, tipo ? { mimeType: tipo, audioBitsPerSecond: 32000 } : undefined);
+        catch (e) { throw new Error(e?.name === 'NotAllowedError' || e?.name === 'SecurityError' ? 'sin-permiso' : 'sin-mic'); }
+        partes = [];
+        try { rec = new MediaRecorder(stream, tipo ? { mimeType: tipo, audioBitsPerSecond: 32000 } : undefined); }
+        catch (e) { soltar(); throw new Error('sin-soporte'); }
         rec.ondataavailable = (e) => { if (e.data.size) partes.push(e.data); };
         rec.start(250); t0 = performance.now();
       },
@@ -71,5 +87,5 @@
     };
   }
 
-  window.ChatMedios = { BUCKET, comprimirImagen, firmar, firmada, recortarCuadrado, grabadora };
+  window.ChatMedios = { BUCKET, comprimirImagen, firmar, firmada, vigente, puedeFirmar, reintentarYa, rutaMini, recortarCuadrado, grabadora };
 })();

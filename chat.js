@@ -71,7 +71,7 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
 #recorte p { color: #fff; margin: 0; font-size: .9rem; opacity: .85 }
 #recorte input[type=range] { width: min(300px, 80vw) }
 #recorte .acc { display: flex; gap: 10px }
-#chatEnviar { touch-action: none; height: 42px; border-radius: 50%; border: 0; background: var(--accent); color: var(--bg); font-size: 1.1rem; flex: none }
+#chatEnviar { touch-action: none; width: 42px; height: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--accent); color: var(--bg); font-size: 1.1rem; flex: none }
 #chatEnviar:disabled { opacity: .5 }
 #chatAcciones { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
   padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -10px 30px rgba(0,0,0,.35); z-index: 2 }
@@ -174,7 +174,7 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
       const url = avatarDe(k), n = nombres();
       el.style.background = `var(--${k.toLowerCase()})`;
       const img = el.querySelector('img');
-      if (url) { if (img?.dataset.u !== url) { const i = document.createElement('img'); i.alt = ''; i.src = url; i.dataset.u = url; el.replaceChildren(i); } }
+      if (url) { if (img?.dataset.u !== url) { const i = document.createElement('img'); i.alt = ''; i.src = url; i.dataset.u = url; i.onerror = () => { i.remove(); el.textContent = (n[k] || '?').trim().charAt(0).toUpperCase(); }; el.replaceChildren(i); } }
       else { el.textContent = (n[k] || '?').trim().charAt(0).toUpperCase(); }
     }
     if (db) for (const k of ['A', 'B']) db.doc('perfil/' + k).onSnapshot((d) => {
@@ -229,8 +229,9 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
         const k = yo(), anterior = perfiles[k]?.foto, archivo = L.rutaArchivo(viaje, 'perfil', k + '-' + Date.now());
         const up = await sb.storage.from(M.BUCKET).upload(archivo, blob, { contentType: blob.type });
         if (up.error) throw up.error;
-        await M.firmar(sb, [archivo]);
-        await db.doc('perfil/' + k).set({ foto: archivo, v: Date.now() });
+        try { await db.doc('perfil/' + k).set({ foto: archivo, v: Date.now() }); }
+        catch (err) { sb.storage.from(M.BUCKET).remove([archivo]); throw err; }
+        M.firmar(sb, [archivo]).then(pintar).catch(() => {});
         if (anterior) sb.storage.from(M.BUCKET).remove([anterior]);
         if (history.state?.recorte) history.back(); else cerrarRecorte();
       } catch (err) { console.error(err); window.aviso?.('No se pudo guardar la foto. Probá de nuevo.'); }
@@ -243,29 +244,49 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
     });
 
     /* ---------- fotos y audios ---------- */
+    // ruta que muestra cada burbuja: las fotos usan su miniatura liviana, el visor usa el original
+    const rutaDe = (m) => (m.tipo === 'foto' ? M.rutaMini(m.archivo) : m.archivo);
     const porFirmar = new Set(); let firmando = false;
     function pedirFirma(path) {
+      if (!M.puedeFirmar(path)) return; // sin señal: espera (backoff); rota: no se repide
       porFirmar.add(path);
       if (firmando) return;
       firmando = true;
       setTimeout(async () => {
         const paths = [...porFirmar]; porFirmar.clear();
-        try { await M.firmar(sb, paths); } catch (e) { console.error(e); }
+        try { await M.firmar(sb, paths); } catch (e) { console.warn('firmas en espera:', e.message); }
         firmando = false;
-        for (const [id, nodo] of medios) { const m = lista.find((x) => x.id === id); if (m && paths.includes(m.archivo)) ponerSrc(nodo, m); }
-        if (porFirmar.size) pedirFirma([...porFirmar][0]);
+        for (const [id, nodo] of medios) { const m = lista.find((x) => x.id === id); if (m && paths.includes(rutaDe(m))) ponerSrc(nodo, m); }
       }, 0);
     }
     function ponerSrc(nodo, m) {
       const el = nodo.tagName === 'IMG' ? nodo : nodo.querySelector('audio');
       if (m.local) { if (!el.getAttribute('src')) el.src = m.local; return; }
-      if (el.dataset.archivo === m.archivo && el.getAttribute('src') && !el.getAttribute('src').startsWith('blob:')) return; // ya tiene su firmada
-      const url = M.firmada(m.archivo);
-      if (url) { el.src = url; el.dataset.archivo = m.archivo; } else if (m.archivo) pedirFirma(m.archivo);
+      const ruta = rutaDe(m), actual = el.getAttribute('src');
+      if (el.dataset.ruta === ruta && actual && !actual.startsWith('blob:') && M.vigente(ruta)) return; // ya tiene su firmada vigente
+      const url = M.firmada(ruta);
+      if (url && url !== actual && !(el.tagName === 'AUDIO' && !el.paused)) { el.src = url; el.dataset.ruta = ruta; }
+      if (!M.vigente(ruta)) pedirFirma(ruta);
+    }
+    // volver a tener señal o volver a la app: se reintenta lo que quedó esperando
+    const reintentar = () => { M.reintentarYa(); pintar(); };
+    window.addEventListener('online', reintentar);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) reintentar(); });
+    // borrados remotos o reconciliados: se corta el audio y se suelta el nodo
+    function limpiarMedios() {
+      for (const [id, nodo] of medios) if (!id.startsWith('tmp-') && !lista.some((x) => x.id === id)) { nodo.querySelector?.('audio')?.pause(); medios.delete(id); }
     }
     function nodoFoto(m) {
       let img = medios.get(m.id);
-      if (!img) { img = document.createElement('img'); img.className = 'foto'; img.alt = 'Foto'; img.decoding = 'async'; medios.set(m.id, img); }
+      if (!img) {
+        img = document.createElement('img'); img.className = 'foto'; img.alt = 'Foto'; img.decoding = 'async'; img.loading = 'lazy'; img.draggable = false;
+        img.addEventListener('error', () => { // URL vencida u objeto que falta: se re-firma una vez
+          const mm = lista.find((x) => x.id === img.dataset.id); if (!mm || img.dataset.reintento) return;
+          img.dataset.reintento = '1'; img.removeAttribute('src'); M.reintentarYa(); pedirFirma(rutaDe(mm));
+        });
+        img.addEventListener('load', () => { delete img.dataset.reintento; });
+        medios.set(m.id, img);
+      }
       if (m.ancho && m.alto) img.style.aspectRatio = m.ancho + ' / ' + m.alto;
       img.style.width = m.alto > m.ancho ? 'min(190px, 48vw)' : 'min(250px, 62vw)';
       img.dataset.id = m.id; ponerSrc(img, m);
@@ -299,9 +320,11 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
       if (sonando && sonando !== au) sonando.pause();
       sonando = au;
       const m = lista.find((x) => x.id === d.dataset.id);
-      if (!au.getAttribute('src') && m) ponerSrc(d, m);
       const ir = () => au.play().catch((e) => { console.error(e); window.aviso?.('No se pudo reproducir el audio.'); });
-      if (au.getAttribute('src')) ir(); else setTimeout(() => (au.getAttribute('src') ? ir() : null), 600);
+      if (!m || m.local || M.vigente(m.archivo)) { if (m && !au.getAttribute('src')) ponerSrc(d, m); return ir(); }
+      M.reintentarYa();
+      M.firmar(sb, [m.archivo]).then(() => { const t = au.currentTime; au.src = M.firmada(m.archivo); au.dataset.ruta = m.archivo; au.currentTime = t; ir(); })
+        .catch(() => window.aviso?.('No se pudo cargar el audio. Revisá la conexión.'));
     }
 
     /* ---------- grabar audio: mantener 🎤, soltar envía, deslizar a la izquierda cancela ---------- */
@@ -320,7 +343,13 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
       x0 = e.clientX; cancelado = false; soltado = false;
       const r = M.grabadora(); rec = r;
       try { await r.iniciar(); }
-      catch (err) { rec = null; terminarUi(); window.aviso?.('Para mandar audios, permití el micrófono en Chrome (candado de la barra ▸ Micrófono).'); return; }
+      catch (err) {
+        rec = null; terminarUi();
+        window.aviso?.(err.message === 'sin-permiso' ? 'Para mandar audios, permití el micrófono en Chrome (candado de la barra ▸ Micrófono).'
+          : err.message === 'sin-mic' ? 'No se encontró micrófono, o lo está usando otra app (¿una llamada?).'
+          : 'Este navegador no puede grabar audios.');
+        return;
+      }
       if (soltado || cancelado) { r.cancelar(); rec = null; return; }
       navigator.vibrate?.(20);
       $('chatEnviar').classList.add('grabando'); $('chatGrabando').hidden = false;
@@ -342,7 +371,10 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
       if (!res || cancelado || !L.audioValido(Math.min(res.ms, L.AUDIO_MAX_MS))) return;
       enviarAudio(res.blob, Math.round(Math.min(res.ms, L.AUDIO_MAX_MS)));
     }
-    ['pointerup', 'pointercancel'].forEach((ev) => $('chatEnviar').addEventListener(ev, () => { soltado = true; if (rec && reloj) finalizar(); }));
+    $('chatEnviar').addEventListener('pointerup', () => { soltado = true; if (rec && reloj) finalizar(); });
+    const cancelarGrabacion = () => { soltado = true; cancelado = true; if (rec) { rec.cancelar(); rec = null; } terminarUi(); };
+    $('chatEnviar').addEventListener('pointercancel', cancelarGrabacion); // cortina, llamada entrante, gesto del sistema
+    document.addEventListener('visibilitychange', () => { if (document.hidden && (rec || reloj)) cancelarGrabacion(); });
     async function enviarAudio(blob, ms) {
       const tmp = { id: 'tmp-a' + Date.now(), autor: yo(), tipo: 'audio', creado: new Date().toISOString(), reacciones: {}, subiendo: true, duracion_ms: ms, local: URL.createObjectURL(blob) };
       lista = L.fusionar(lista, tmp); pintar(); $('chatLista').scrollTop = $('chatLista').scrollHeight;
@@ -358,35 +390,47 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
       } catch (e) {
         console.error(e); lista = L.quitar(lista, tmp.id); medios.delete(tmp.id); pintar();
         window.aviso?.('No se pudo mandar el audio. Revisá la conexión y probá de nuevo.');
-      } finally { setTimeout(() => URL.revokeObjectURL(tmp.local), 30000); }
+      } finally { URL.revokeObjectURL(tmp.local); }
     }
 
     async function enviarFoto(file) {
       if (!file) return;
-      const tmp = { id: 'tmp-' + Date.now(), autor: yo(), tipo: 'foto', creado: new Date().toISOString(), reacciones: {}, subiendo: true, local: URL.createObjectURL(file) };
+      const tmp = { id: 'tmp-' + Date.now(), autor: yo(), tipo: 'foto', creado: new Date().toISOString(), reacciones: {}, subiendo: true, local: URL.createObjectURL(file), ancho: 4, alto: 3 };
+      lista = L.fusionar(lista, tmp); pintar(); $('chatLista').scrollTop = $('chatLista').scrollHeight;
+      let c, mini;
+      try { c = await M.comprimirImagen(file, 1600, 0.8); mini = await M.comprimirImagen(file, 480, 0.7); }
+      catch (e) {
+        console.error(e); lista = L.quitar(lista, tmp.id); medios.delete(tmp.id); pintar(); URL.revokeObjectURL(tmp.local);
+        return window.aviso?.('No se pudo leer esa foto. Probá con otra.');
+      }
+      Object.assign(tmp, { ancho: c.ancho, alto: c.alto }); pintar();
+      const archivo = L.rutaArchivo(viaje, 'foto', crypto.randomUUID()), archivoMini = M.rutaMini(archivo);
       try {
-        const c = await M.comprimirImagen(file, 1600, 0.8);
-        Object.assign(tmp, { ancho: c.ancho, alto: c.alto });
-        lista = L.fusionar(lista, tmp); pintar(); $('chatLista').scrollTop = $('chatLista').scrollHeight;
-        const archivo = L.rutaArchivo(viaje, 'foto', crypto.randomUUID());
         const up = await sb.storage.from(M.BUCKET).upload(archivo, c.blob, { contentType: c.tipo });
         if (up.error) throw up.error;
+        const upMini = await sb.storage.from(M.BUCKET).upload(archivoMini, mini.blob, { contentType: mini.tipo });
+        if (upMini.error) { sb.storage.from(M.BUCKET).remove([archivo]); throw upMini.error; }
         const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), tipo: 'foto', archivo, ancho: c.ancho, alto: c.alto }).select(CAMPOS).single();
-        if (error) { sb.storage.from(M.BUCKET).remove([archivo]); throw error; }
+        if (error) { sb.storage.from(M.BUCKET).remove([archivo, archivoMini]); throw error; }
         medios.delete(tmp.id);
         lista = L.fusionar(L.quitar(lista, tmp.id), data); marcarVisto(); pintar();
         avisar('nuevo', { m: data });
       } catch (e) {
         console.error(e); lista = L.quitar(lista, tmp.id); medios.delete(tmp.id); pintar();
         window.aviso?.('No se pudo mandar la foto. Revisá la conexión y probá de nuevo.');
-      } finally { setTimeout(() => URL.revokeObjectURL(tmp.local), 30000); }
+      } finally { URL.revokeObjectURL(tmp.local); }
     }
     $('chatFoto').addEventListener('change', (e) => { const f = e.target.files?.[0]; e.target.value = ''; enviarFoto(f); });
 
-    function abrirVisor(id) {
-      const m = lista.find((x) => x.id === id); const url = m && (M.firmada(m.archivo) || medios.get(id)?.src); if (!url) return;
-      $('chatVisor').querySelector('img').src = url; $('chatVisor').hidden = false;
+    async function abrirVisor(id) {
+      const m = lista.find((x) => x.id === id); if (!m) return;
+      const img = $('chatVisor').querySelector('img');
+      img.src = medios.get(id)?.src || ''; // la miniatura mientras llega el original
+      $('chatVisor').hidden = false;
       history.pushState({ chat: 1, foto: 1 }, '', '#chat');
+      if (m.local) return;
+      try { M.reintentarYa(); await M.firmar(sb, [m.archivo]); if (!$('chatVisor').hidden) img.src = M.firmada(m.archivo); }
+      catch (e) { console.warn(e); }
     }
     const cerrarVisor = () => { $('chatVisor').hidden = true; $('chatVisor').querySelector('img').removeAttribute('src'); };
     $('chatVisor').addEventListener('click', () => { if (history.state?.foto) history.back(); else cerrarVisor(); });
@@ -406,7 +450,7 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
         const corte = data.length ? Date.parse(data[data.length - 1].creado) : 0;
         const tieneViejos = lista.some((m) => Date.parse(m.creado) < corte);
         hayMas = data.length < TAM ? false : (tieneViejos ? hayMas : true);
-        lista = L.reconciliar(lista, data, TAM);
+        lista = L.reconciliar(lista, data, TAM); limpiarMedios();
       }
       if (abierto()) marcarVisto();
       pintar();
@@ -415,7 +459,7 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
     canal.on('broadcast', { event: 'chat' }, ({ payload: p }) => {
       if (!p) return;
       if ((p.accion === 'nuevo' || p.accion === 'cambio') && p.m?.id) lista = L.fusionar(lista, p.m);
-      else if (p.accion === 'borrado' && p.id) lista = L.quitar(lista, p.id);
+      else if (p.accion === 'borrado' && p.id) { lista = L.quitar(lista, p.id); limpiarMedios(); }
       else return;
       if (abierto()) marcarVisto();
       pintar();
@@ -509,7 +553,7 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
       const borrado = lista.find((x) => x.id === id);
       medios.get(id)?.querySelector?.('audio')?.pause();
       lista = L.quitar(lista, id); medios.delete(id); pintar(); avisar('borrado', { id });
-      if (borrado?.archivo) sb.storage.from(M.BUCKET).remove([borrado.archivo]).then(({ error }) => { if (error) console.error(error); });
+      if (borrado?.archivo) sb.storage.from(M.BUCKET).remove(borrado.tipo === 'foto' ? [borrado.archivo, M.rutaMini(borrado.archivo)] : [borrado.archivo]).then(({ error }) => { if (error) console.error(error); });
     });
 
     pintar();
