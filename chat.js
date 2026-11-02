@@ -35,6 +35,15 @@
 .reacs { margin-top: -4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 0 6px; font-size: .85rem; position: relative; z-index: 1 }
 #chatForm { display: flex; align-items: flex-end; gap: 8px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--surface); border-top: 1px solid var(--line) }
 #chatTexto { flex: 1; resize: none; border: 1px solid var(--line); border-radius: 20px; padding: 9px 14px; background: var(--bg); color: var(--ink); font: inherit; max-height: 130px; line-height: 1.3 }
+.adj { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-size: 1.3rem; cursor: pointer; flex: none; background: var(--bg); border: 1px solid var(--line) }
+.burbuja.media { padding: 3px 3px 4px }
+.burbuja.media .hora { padding: 0 6px }
+img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max-height: 320px; object-fit: cover; background: var(--line); cursor: zoom-in }
+.burbuja.subiendo { opacity: .65 }
+.burbuja .estado { font-size: .75rem; padding: 2px 6px; opacity: .8 }
+#chatVisor { position: absolute; inset: 0; z-index: 3; background: rgba(0,0,0,.92); display: grid; place-items: center }
+#chatVisor[hidden] { display: none }
+#chatVisor img { max-width: 100%; max-height: 100%; object-fit: contain }
 #chatEnviar { width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--accent); color: var(--bg); font-size: 1.1rem; flex: none }
 #chatEnviar:disabled { opacity: .5 }
 #chatAcciones { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
@@ -51,7 +60,9 @@
     const L = window.ChatLogica;
     const $ = (id) => document.getElementById(id);
     const otro = () => (yo() === 'A' ? 'B' : 'A');
-    const CAMPOS = 'id,autor,tipo,texto,reacciones,creado';
+    const CAMPOS = 'id,autor,tipo,texto,reacciones,creado,archivo,ancho,alto,duracion_ms';
+    const M = window.ChatMedios, medios = new Map(); // id → nodo de foto/audio, se reusa entre redibujos
+    let presionLargaHasta = 0; // el click que sigue a una presión larga no abre el visor
     let lista = [], hayMas = false, selId = null, timer = null, enviando = false;
     const TAM = 50, tactil = matchMedia('(pointer: coarse)').matches;
     const sinHash = () => location.pathname + location.search;
@@ -71,9 +82,11 @@
   <header><button type="button" id="chatCerrar" aria-label="Volver">←</button><div class="av" aria-hidden="true"></div><b class="nom"></b></header>
   <div id="chatLista"></div>
   <form id="chatForm" autocomplete="off">
+    <label class="adj" for="chatFoto" aria-label="Mandar foto">📷</label><input type="file" id="chatFoto" accept="image/*" hidden>
     <textarea id="chatTexto" rows="1" enterkeyhint="enter" maxlength="${L.MAX_TEXTO}" placeholder="Mensaje" aria-label="Mensaje"></textarea>
     <button type="submit" id="chatEnviar" aria-label="Enviar">➤</button>
   </form>
+  <div id="chatVisor" hidden role="dialog" aria-label="Foto"><img alt=""></div>
   <div id="chatAcciones" hidden>
     <div class="reac">${L.REACCIONES.map((r) => `<button type="button" data-reac="${r}" aria-label="Reaccionar ${r}">${r}</button>`).join('')}</div>
     <div class="fila"><button type="button" class="btn ghost" id="chatCopiar">Copiar</button><button type="button" class="btn ghost" id="chatBorrar" hidden>Borrar</button><button type="button" class="btn ghost" id="chatCancelar">Cancelar</button></div>
@@ -103,9 +116,13 @@
       for (const m of lista) {
         const fila = document.createElement('div'); fila.className = `msg ${m.autor === yo() ? 'mio' : 'otro'} ${m.autor}`; fila.dataset.id = m.id;
         const bur = document.createElement('div'); bur.className = 'burbuja' + (m.id === selId ? ' sel' : ''); bur.dataset.id = m.id;
-        const txt = document.createElement('div'); txt.className = 'txt'; txt.textContent = m.texto || L.resumen(m);
         const hora = document.createElement('span'); hora.className = 'hora'; hora.textContent = L.horaCorta(m.creado);
-        bur.append(txt, hora); fila.appendChild(bur);
+        if (m.tipo === 'foto' || m.tipo === 'audio') {
+          bur.classList.add('media'); if (m.subiendo) bur.classList.add('subiendo');
+          bur.appendChild(m.tipo === 'foto' ? nodoFoto(m) : nodoAudio(m));
+          if (m.subiendo) { const e = document.createElement('div'); e.className = 'estado'; e.textContent = 'Subiendo…'; bur.appendChild(e); }
+        } else { const txt = document.createElement('div'); txt.className = 'txt'; txt.textContent = m.texto || L.resumen(m); bur.appendChild(txt); }
+        bur.appendChild(hora); fila.appendChild(bur);
         const rs = Object.values(m.reacciones || {});
         if (rs.length) { const r = document.createElement('div'); r.className = 'reacs'; r.textContent = rs[0] === rs[1] ? `${rs[0]} 2` : rs.join(' '); fila.appendChild(r); }
         cont.appendChild(fila);
@@ -113,6 +130,67 @@
       if (alFondo) cont.scrollTop = cont.scrollHeight;
     }
     const pintar = () => { pintarCabeceras(); if (abierto()) pintarLista(); };
+
+    /* ---------- fotos y audios ---------- */
+    const porFirmar = new Set(); let firmando = false;
+    function pedirFirma(path) {
+      porFirmar.add(path);
+      if (firmando) return;
+      firmando = true;
+      setTimeout(async () => {
+        const paths = [...porFirmar]; porFirmar.clear();
+        try { await M.firmar(sb, paths); } catch (e) { console.error(e); }
+        firmando = false;
+        for (const [id, nodo] of medios) { const m = lista.find((x) => x.id === id); if (m && paths.includes(m.archivo)) ponerSrc(nodo, m); }
+        if (porFirmar.size) pedirFirma([...porFirmar][0]);
+      }, 0);
+    }
+    function ponerSrc(nodo, m) {
+      const el = nodo.tagName === 'IMG' ? nodo : nodo.querySelector('audio');
+      if (m.local) { if (!el.getAttribute('src')) el.src = m.local; return; }
+      if (el.dataset.archivo === m.archivo && el.getAttribute('src') && !el.getAttribute('src').startsWith('blob:')) return; // ya tiene su firmada
+      const url = M.firmada(m.archivo);
+      if (url) { el.src = url; el.dataset.archivo = m.archivo; } else if (m.archivo) pedirFirma(m.archivo);
+    }
+    function nodoFoto(m) {
+      let img = medios.get(m.id);
+      if (!img) { img = document.createElement('img'); img.className = 'foto'; img.alt = 'Foto'; img.decoding = 'async'; medios.set(m.id, img); }
+      if (m.ancho && m.alto) img.style.aspectRatio = m.ancho + ' / ' + m.alto;
+      img.style.width = m.alto > m.ancho ? 'min(190px, 48vw)' : 'min(250px, 62vw)';
+      img.dataset.id = m.id; ponerSrc(img, m);
+      return img;
+    }
+    function nodoAudio(m) { const d = document.createElement('div'); d.textContent = '🎤 Audio'; return d; } // se reemplaza en la Task 4
+
+    async function enviarFoto(file) {
+      if (!file) return;
+      const tmp = { id: 'tmp-' + Date.now(), autor: yo(), tipo: 'foto', creado: new Date().toISOString(), reacciones: {}, subiendo: true, local: URL.createObjectURL(file) };
+      try {
+        const c = await M.comprimirImagen(file, 1600, 0.8);
+        Object.assign(tmp, { ancho: c.ancho, alto: c.alto });
+        lista = L.fusionar(lista, tmp); pintar(); $('chatLista').scrollTop = $('chatLista').scrollHeight;
+        const archivo = L.rutaArchivo(viaje, 'foto', crypto.randomUUID());
+        const up = await sb.storage.from(M.BUCKET).upload(archivo, c.blob, { contentType: c.tipo });
+        if (up.error) throw up.error;
+        const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), tipo: 'foto', archivo, ancho: c.ancho, alto: c.alto }).select(CAMPOS).single();
+        if (error) { sb.storage.from(M.BUCKET).remove([archivo]); throw error; }
+        medios.delete(tmp.id);
+        lista = L.fusionar(L.quitar(lista, tmp.id), data); marcarVisto(); pintar();
+        avisar('nuevo', { m: data });
+      } catch (e) {
+        console.error(e); lista = L.quitar(lista, tmp.id); medios.delete(tmp.id); pintar();
+        window.aviso?.('No se pudo mandar la foto. Revisá la conexión y probá de nuevo.');
+      } finally { setTimeout(() => URL.revokeObjectURL(tmp.local), 30000); }
+    }
+    $('chatFoto').addEventListener('change', (e) => { const f = e.target.files?.[0]; e.target.value = ''; enviarFoto(f); });
+
+    function abrirVisor(id) {
+      const m = lista.find((x) => x.id === id); const url = m && (M.firmada(m.archivo) || medios.get(id)?.src); if (!url) return;
+      $('chatVisor').querySelector('img').src = url; $('chatVisor').hidden = false;
+      history.pushState({ chat: 1, foto: 1 }, '', '#chat');
+    }
+    const cerrarVisor = () => { $('chatVisor').hidden = true; $('chatVisor').querySelector('img').removeAttribute('src'); };
+    $('chatVisor').addEventListener('click', () => { if (history.state?.foto) history.back(); else cerrarVisor(); });
     window.alCambiarSoyChat = pintar;
 
     /* ---------- datos ---------- */
@@ -175,6 +253,7 @@
     $('chatBarra').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirPanel(); } });
     $('chatCerrar').addEventListener('click', () => { if (history.state?.chat) history.back(); else { history.replaceState(null, '', sinHash()); cerrarPanel(); } });
     window.addEventListener('popstate', () => {
+      if (!$('chatVisor').hidden && !history.state?.foto) { cerrarVisor(); if (location.hash === '#chat') return; }
       if (!$('chatAcciones').hidden && !history.state?.acc) { ocultarAcciones(); if (location.hash === '#chat') return; }
       if (location.hash === '#chat') abrirPanel(); else if (abierto()) cerrarPanel();
     });
@@ -191,6 +270,7 @@
       const m = lista.find((x) => x.id === id); if (!m) return;
       selId = id; pintarLista();
       document.querySelectorAll('#chatAcciones [data-reac]').forEach((b) => b.classList.toggle('mia', m.reacciones?.[yo()] === b.dataset.reac));
+      $('chatCopiar').hidden = !m.texto;
       const borrar = $('chatBorrar'); borrar.hidden = m.autor !== yo(); borrar.classList.remove('armed'); borrar.textContent = 'Borrar';
       $('chatAcciones').hidden = false;
       history.pushState({ chat: 1, acc: 1 }, '', '#chat');
@@ -200,12 +280,15 @@
     const cancelarTimer = () => { clearTimeout(timer); timer = null; };
     $('chatLista').addEventListener('pointerdown', (e) => {
       const b = e.target.closest('.burbuja'); if (!b) return;
-      cancelarTimer(); timer = setTimeout(() => { timer = null; navigator.vibrate?.(15); abrirAcciones(b.dataset.id); }, 500);
+      cancelarTimer(); timer = setTimeout(() => { timer = null; presionLargaHasta = Date.now() + 700; navigator.vibrate?.(15); abrirAcciones(b.dataset.id); }, 500);
     });
     ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => $('chatLista').addEventListener(ev, cancelarTimer));
     $('chatLista').addEventListener('scroll', cancelarTimer, { passive: true });
     $('chatLista').addEventListener('contextmenu', (e) => { const b = e.target.closest('.burbuja'); if (b) { e.preventDefault(); cancelarTimer(); abrirAcciones(b.dataset.id); } });
-    $('chatLista').addEventListener('click', (e) => { if (e.target.id === 'chatMas') cargar(lista[0]?.creado); });
+    $('chatLista').addEventListener('click', (e) => {
+      if (e.target.id === 'chatMas') return cargar(lista[0]?.creado);
+      const f = e.target.closest('img.foto'); if (f && Date.now() > presionLargaHasta) abrirVisor(f.dataset.id);
+    });
     $('chatCancelar').addEventListener('click', cerrarAcciones);
     $('chatCopiar').addEventListener('click', () => { const m = lista.find((x) => x.id === selId); cerrarAcciones(); if (m?.texto) navigator.clipboard?.writeText(m.texto).catch(() => {}); });
     $('chatAcciones').addEventListener('click', async (e) => {
@@ -223,7 +306,9 @@
       const id = selId; cerrarAcciones(); if (!id) return;
       const { error } = await sb.from('mensajes').delete().eq('id', id);
       if (error) { console.error(error); window.aviso?.('No se pudo borrar. Probá de nuevo.'); return; }
-      lista = L.quitar(lista, id); pintar(); avisar('borrado', { id });
+      const borrado = lista.find((x) => x.id === id);
+      lista = L.quitar(lista, id); medios.delete(id); pintar(); avisar('borrado', { id });
+      if (borrado?.archivo) sb.storage.from(M.BUCKET).remove([borrado.archivo]).then(({ error }) => { if (error) console.error(error); });
     });
 
     pintar();
