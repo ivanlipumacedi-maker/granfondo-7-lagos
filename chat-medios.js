@@ -58,6 +58,25 @@
     return aBlob(c, calidad);
   }
 
+  /** Sticker 512×512: recorte cuadrado con esquinas redondeadas (fondo transparente) y texto opcional abajo. */
+  async function hacerSticker(bm, { x, y, zoom }, texto, lado = 512) {
+    const corte = Math.min(bm.width, bm.height) / Math.max(1, zoom);
+    const sx = Math.min(Math.max(0, x - corte / 2), bm.width - corte), sy = Math.min(Math.max(0, y - corte / 2), bm.height - corte);
+    const c = document.createElement('canvas'); c.width = lado; c.height = lado;
+    const g = c.getContext('2d');
+    g.save(); g.beginPath(); g.roundRect(0, 0, lado, lado, 48); g.clip();
+    g.drawImage(bm, sx, sy, corte, corte, 0, 0, lado, lado); g.restore();
+    const t = L.textoSticker(texto);
+    if (t) {
+      let tam = 72; g.font = `900 ${tam}px system-ui, sans-serif`;
+      while (g.measureText(t).width > lado - 40 && tam > 28) { tam -= 4; g.font = `900 ${tam}px system-ui, sans-serif`; }
+      g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.lineJoin = 'round';
+      g.lineWidth = Math.max(6, tam / 7); g.strokeStyle = '#000'; g.fillStyle = '#fff';
+      g.strokeText(t, lado / 2, lado - 34); g.fillText(t, lado / 2, lado - 34);
+    }
+    return new Promise((res) => c.toBlob((b) => res(b), 'image/webp', 0.85));
+  }
+
   /** Grabadora de audio (webm/opus). iniciar() rechaza con Error('sin-permiso') si no hay micrófono. */
   function grabadora() {
     let rec = null, stream = null, partes = [], t0 = 0;
@@ -87,5 +106,5 @@
     };
   }
 
-  window.ChatMedios = { BUCKET, comprimirImagen, firmar, firmada, vigente, puedeFirmar, reintentarYa, rutaMini, recortarCuadrado, grabadora };
+  window.ChatMedios = { BUCKET, comprimirImagen, firmar, firmada, vigente, puedeFirmar, reintentarYa, rutaMini, recortarCuadrado, hacerSticker, grabadora };
 })();

@@ -41,12 +41,13 @@
     return { ancho: Math.round(ancho * f), alto: Math.round(alto * f) };
   }
   const duracionTexto = (ms) => { const s = Math.round((ms || 0) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
-  const CARPETAS = { foto: ['fotos', 'webp'], audio: ['audios', 'webm'], perfil: ['perfil', 'webp'] };
+  const CARPETAS = { foto: ['fotos', 'webp'], audio: ['audios', 'webm'], perfil: ['perfil', 'webp'], sticker: ['stickers', 'webp'] };
   const rutaArchivo = (viaje, tipo, id) => `${viaje}/${CARPETAS[tipo][0]}/${id}.${CARPETAS[tipo][1]}`;
   const AUDIO_MIN_MS = 700, AUDIO_MAX_MS = 120000;
   const audioValido = (ms) => ms >= AUDIO_MIN_MS && ms <= AUDIO_MAX_MS;
+  const textoSticker = (s) => String(s ?? '').trim().toUpperCase().slice(0, 30);
 
   const L = { REACCIONES, MAX_TEXTO, textoValido, resumen, fusionar, quitar, noLeidos, alternarReaccion, horaCorta, ultimoCreado, reconciliar,
-    escalar, duracionTexto, rutaArchivo, AUDIO_MIN_MS, AUDIO_MAX_MS, audioValido };
+    escalar, duracionTexto, rutaArchivo, AUDIO_MIN_MS, AUDIO_MAX_MS, audioValido, textoSticker };
   if (typeof module !== 'undefined' && module.exports) module.exports = L; else g.ChatLogica = L;
 })(this);

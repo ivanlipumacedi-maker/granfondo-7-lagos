@@ -71,6 +71,34 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
 #recorte p { color: #fff; margin: 0; font-size: .9rem; opacity: .85 }
 #recorte input[type=range] { width: min(300px, 80vw) }
 #recorte .acc { display: flex; gap: 10px }
+.burbuja.sticker { background: none !important; border: 0 !important; padding: 0 }
+.burbuja.sticker .hora { color: var(--muted); text-align: right; opacity: 1 }
+img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -webkit-user-drag: none }
+.msg.mio .burbuja.sticker .hora { color: var(--muted) }
+#chatStickers { position: absolute; left: 0; right: 0; bottom: 0; height: min(60%, 460px); z-index: 2; background: var(--surface); border-top: 1px solid var(--line);
+  border-radius: 16px 16px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,.35); display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom, 0px) }
+#chatStickers[hidden] { display: none }
+#chatStickers .tabs2 { display: flex; gap: 6px; padding: 10px 12px 6px; align-items: center }
+#chatStickers .tabs2 button { border: 1px solid var(--line); background: none; color: var(--ink); border-radius: 999px; padding: 5px 14px; font-weight: 600 }
+#chatStickers .tabs2 button[aria-selected="true"] { background: var(--ink); color: var(--bg) }
+#chatStickers .tabs2 .cerrar { margin-left: auto; border: 0; font-size: 1.2rem }
+#chatStickers .cuerpo { flex: 1; overflow-y: auto; padding: 6px 12px 12px }
+#chatStickers .grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px }
+#chatStickers .grilla > * { aspect-ratio: 1; border-radius: 12px; display: grid; place-items: center; position: relative }
+#chatStickers .grilla > .link, #chatStickers .grilla > .nota { aspect-ratio: auto; justify-self: center }
+#chatStickers .grilla img { width: 100%; height: 100%; object-fit: contain; cursor: pointer }
+#chatStickers .crear { border: 2px dashed var(--line); color: var(--muted); font-weight: 700; cursor: pointer; text-align: center; font-size: .85rem }
+#chatStickers .quitar { position: absolute; top: -6px; right: -6px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: var(--danger, #d2453a); color: #fff; font-weight: 800 }
+#chatStickers .nota { color: var(--muted); font-size: .85rem; text-align: center; padding: 14px 6px }
+#chatStickers input[type=search] { width: 100%; border: 1px solid var(--line); border-radius: 20px; padding: 8px 14px; background: var(--bg); color: var(--ink); margin-bottom: 8px; font: inherit }
+#chatStickers .giphy { font-size: .72rem; color: var(--muted); text-align: right; padding: 4px 2px 0; letter-spacing: .03em }
+#stickerEditor { position: fixed; inset: 0; z-index: 70; background: rgba(8,12,14,.97); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px }
+#stickerEditor[hidden] { display: none }
+#stickerEditor canvas { width: min(280px, 74vw); height: min(280px, 74vw); touch-action: none; cursor: grab; background: repeating-conic-gradient(#2a373d 0 25%, #1a2328 0 50%) 0 0 / 20px 20px; border-radius: 14px }
+#stickerEditor p { color: #fff; margin: 0; font-size: .9rem; opacity: .85 }
+#stickerEditor input[type=text] { width: min(280px, 74vw); border-radius: 10px; border: 1px solid var(--line); padding: 9px 12px; font: inherit; text-transform: uppercase }
+#stickerEditor input[type=range] { width: min(280px, 74vw) }
+#stickerEditor .acc { display: flex; gap: 10px }
 #chatEnviar { touch-action: none; width: 42px; height: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--accent); color: var(--bg); font-size: 1.1rem; flex: none }
 #chatEnviar:disabled { opacity: .5 }
 #chatAcciones { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
@@ -109,12 +137,18 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
   <header><button type="button" id="chatCerrar" aria-label="Volver">←</button><div class="av" aria-hidden="true"></div><b class="nom"></b></header>
   <div id="chatLista"></div>
   <form id="chatForm" autocomplete="off">
-    <label class="adj" for="chatFoto" aria-label="Mandar foto">📷</label><input type="file" id="chatFoto" accept="image/*" hidden>
+    <label class="adj" for="chatFoto" aria-label="Mandar foto">📷</label><button type="button" class="adj" id="chatStickersBtn" aria-label="Stickers">😀</button><input type="file" id="chatFoto" accept="image/*" hidden>
     <textarea id="chatTexto" rows="1" enterkeyhint="enter" maxlength="${L.MAX_TEXTO}" placeholder="Mensaje" aria-label="Mensaje"></textarea>
     <button type="submit" id="chatEnviar" aria-label="Grabar audio">🎤</button>
     <div id="chatGrabando" hidden><span class="rec"></span><span class="t">0:00</span><span class="cancelar">◀ deslizá para cancelar</span></div>
   </form>
   <div id="chatVisor" hidden role="dialog" aria-label="Foto"><img alt=""></div>
+  <div id="chatStickers" hidden role="dialog" aria-label="Stickers">
+    <div class="tabs2" role="tablist"><button type="button" data-stab="nuestros" aria-selected="true">Nuestros</button><button type="button" data-stab="giphy" aria-selected="false">GIPHY</button>
+      <button type="button" class="cerrar" id="chatStickersCerrar" aria-label="Cerrar">✕</button></div>
+    <div class="cuerpo" data-spanel="nuestros"><div class="grilla"></div><input type="file" id="stickerInput" accept="image/*" hidden></div>
+    <div class="cuerpo" data-spanel="giphy" hidden><input type="search" id="giphyQ" placeholder="Buscá: homero, messi, shrek…" aria-label="Buscar en GIPHY" enterkeyhint="search"><div class="grilla"></div><div class="giphy">Powered by GIPHY</div></div>
+  </div>
   <div id="chatAcciones" hidden>
     <div class="reac">${L.REACCIONES.map((r) => `<button type="button" data-reac="${r}" aria-label="Reaccionar ${r}">${r}</button>`).join('')}</div>
     <div class="fila"><button type="button" class="btn ghost" id="chatCopiar">Copiar</button><button type="button" class="btn ghost" id="chatBorrar" hidden>Borrar</button><button type="button" class="btn ghost" id="chatCancelar">Cancelar</button></div>
@@ -151,7 +185,10 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
         const fila = document.createElement('div'); fila.className = `msg ${m.autor === yo() ? 'mio' : 'otro'} ${m.autor}`; fila.dataset.id = m.id;
         const bur = document.createElement('div'); bur.className = 'burbuja' + (m.id === selId ? ' sel' : ''); bur.dataset.id = m.id;
         const hora = document.createElement('span'); hora.className = 'hora'; hora.textContent = L.horaCorta(m.creado);
-        if (m.tipo === 'foto' || m.tipo === 'audio') {
+        if (m.tipo === 'sticker') {
+          bur.classList.add('sticker', 'media'); if (m.subiendo) bur.classList.add('subiendo');
+          bur.appendChild(nodoSticker(m));
+        } else if (m.tipo === 'foto' || m.tipo === 'audio') {
           bur.classList.add('media'); if (m.subiendo) bur.classList.add('subiendo');
           bur.appendChild(m.tipo === 'foto' ? nodoFoto(m) : nodoAudio(m));
           if (m.subiendo) { const e = document.createElement('div'); e.className = 'estado'; e.textContent = 'Subiendo…'; bur.appendChild(e); }
@@ -257,6 +294,7 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
         try { await M.firmar(sb, paths); } catch (e) { console.warn('firmas en espera:', e.message); }
         firmando = false;
         for (const [id, nodo] of medios) { const m = lista.find((x) => x.id === id); if (m && paths.includes(rutaDe(m))) ponerSrc(nodo, m); }
+        if (!$('chatStickers').hidden) pintarNuestros();
       }, 0);
     }
     function ponerSrc(nodo, m) {
@@ -275,6 +313,13 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
     // borrados remotos o reconciliados: se corta el audio y se suelta el nodo
     function limpiarMedios() {
       for (const [id, nodo] of medios) if (!id.startsWith('tmp-') && !lista.some((x) => x.id === id)) { nodo.querySelector?.('audio')?.pause(); medios.delete(id); }
+    }
+    function nodoSticker(m) {
+      let img = medios.get(m.id);
+      if (!img) { img = document.createElement('img'); img.className = 'stk'; img.alt = 'Sticker'; img.loading = 'lazy'; img.draggable = false; medios.set(m.id, img); }
+      img.dataset.id = m.id;
+      if (m.externo) { if (img.getAttribute('src') !== m.externo) img.src = m.externo; } else ponerSrc(img, m);
+      return img;
     }
     function nodoFoto(m) {
       let img = medios.get(m.id);
@@ -422,6 +467,119 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
     }
     $('chatFoto').addEventListener('change', (e) => { const f = e.target.files?.[0]; e.target.value = ''; enviarFoto(f); });
 
+    /* ---------- stickers: selector (Nuestros / GIPHY) y editor ---------- */
+    let stickers = [], editando = false;
+    if (db) db.collection('stickers').orderBy('creado', 'desc').onSnapshot((q) => {
+      stickers = q.docs.map((d) => ({ id: d.id, ...d.data() }));
+      M.firmar(sb, stickers.map((x) => x.archivo)).catch(() => {}).finally(() => { if (!$('chatStickers').hidden) pintarNuestros(); });
+    });
+    function pintarNuestros() {
+      const g = document.querySelector('[data-spanel="nuestros"] .grilla'); g.replaceChildren();
+      const crear = document.createElement('label'); crear.className = 'crear'; crear.htmlFor = 'stickerInput'; crear.textContent = '+ Crear'; g.appendChild(crear);
+      for (const st of stickers) {
+        const d = document.createElement('div'); const url = M.firmada(st.archivo);
+        const img = document.createElement('img'); img.alt = 'Sticker'; img.loading = 'lazy'; img.draggable = false; img.dataset.archivo = st.archivo;
+        if (url) img.src = url; else pedirFirma(st.archivo);
+        d.appendChild(img);
+        if (editando) { const x = document.createElement('button'); x.type = 'button'; x.className = 'quitar'; x.dataset.quitarStk = st.id; x.textContent = '✕'; x.setAttribute('aria-label', 'Quitar sticker'); d.appendChild(x); }
+        g.appendChild(d);
+      }
+      if (stickers.length) { const e = document.createElement('button'); e.type = 'button'; e.className = 'link'; e.id = 'stkEditar'; e.textContent = editando ? 'Listo' : 'Quitar algunos'; e.style.gridColumn = '1 / -1'; g.appendChild(e); }
+      else { const p = document.createElement('p'); p.className = 'nota'; p.style.gridColumn = '1 / -1'; p.textContent = 'Todavía no hay stickers. Creá el primero con una foto.'; g.appendChild(p); }
+    }
+    function abrirStickers() {
+      cerrarAcciones(); editando = false;
+      $('chatStickers').hidden = false; history.pushState({ chat: 1, stk: 1 }, '', '#chat');
+      mostrarTabStk(localStorage.getItem('stkTab') || 'nuestros');
+    }
+    const ocultarStickers = () => { $('chatStickers').hidden = true; };
+    const cerrarStickers = () => { if (!$('chatStickers').hidden && history.state?.stk) history.back(); else ocultarStickers(); };
+    function mostrarTabStk(t) {
+      document.querySelectorAll('#chatStickers [data-stab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.stab === t)));
+      document.querySelectorAll('#chatStickers [data-spanel]').forEach((p) => { p.hidden = p.dataset.spanel !== t; });
+      localStorage.setItem('stkTab', t);
+      if (t === 'nuestros') pintarNuestros(); else window.alAbrirGiphy?.();
+    }
+    $('chatStickersBtn').addEventListener('click', abrirStickers);
+    $('chatStickersCerrar').addEventListener('click', cerrarStickers);
+    document.querySelector('#chatStickers .tabs2').addEventListener('click', (e) => { const b = e.target.closest('[data-stab]'); if (b) mostrarTabStk(b.dataset.stab); });
+    async function mandarSticker(fuente) {
+      cerrarStickers();
+      const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), tipo: 'sticker', ...fuente }).select(CAMPOS).single();
+      if (error) { console.error(error); return window.aviso?.('No se pudo mandar el sticker. Revisá la conexión.'); }
+      lista = L.fusionar(lista, data); marcarVisto(); pintar(); $('chatLista').scrollTop = $('chatLista').scrollHeight;
+      avisar('nuevo', { m: data });
+    }
+    window.mandarStickerExterno = (url) => mandarSticker({ externo: url });
+    document.querySelector('[data-spanel="nuestros"] .grilla').addEventListener('click', async (e) => {
+      if (e.target.id === 'stkEditar') { editando = !editando; return pintarNuestros(); }
+      const q = e.target.closest('[data-quitar-stk]');
+      if (q) {
+        const st = stickers.find((x) => x.id === q.dataset.quitarStk); if (!st) return;
+        await db.doc('stickers/' + st.id).delete().catch(console.error);
+        const { data: usos } = await sb.from('mensajes').select('id').eq('archivo', st.archivo).limit(1);
+        if (!usos?.length) sb.storage.from(M.BUCKET).remove([st.archivo]); // si algún mensaje lo usa, el archivo queda
+        return;
+      }
+      const img = e.target.closest('img[data-archivo]'); if (img && !editando) mandarSticker({ archivo: img.dataset.archivo });
+    });
+
+    // editor: recorte cuadrado + texto
+    let ed = null;
+    document.body.insertAdjacentHTML('beforeend', `
+<div id="stickerEditor" hidden role="dialog" aria-label="Crear sticker"><p>Arrastrá para acomodarlo</p><canvas width="512" height="512"></canvas>
+  <input type="range" id="stickerZoom" min="1" max="4" step="0.01" value="1" aria-label="Zoom">
+  <input type="text" id="stickerTexto" maxlength="30" placeholder="Texto (opcional)" aria-label="Texto del sticker">
+  <div class="acc"><button type="button" class="btn ghost" id="stickerCancelar">Cancelar</button><button type="button" class="btn" id="stickerGuardar">Guardar y mandar</button></div></div>`);
+    let dibujando = false, otraVez = false;
+    async function dibujarEd() {
+      if (!ed) return;
+      if (dibujando) { otraVez = true; return; } // se redibuja al terminar, con el último estado
+      dibujando = true; otraVez = false;
+      const corte = Math.min(ed.bm.width, ed.bm.height) / ed.zoom;
+      ed.cx = Math.min(Math.max(corte / 2, ed.cx), ed.bm.width - corte / 2); ed.cy = Math.min(Math.max(corte / 2, ed.cy), ed.bm.height - corte / 2);
+      const blob = await M.hacerSticker(ed.bm, { x: ed.cx, y: ed.cy, zoom: ed.zoom }, $('stickerTexto').value);
+      const bm = await createImageBitmap(blob); const cv = document.querySelector('#stickerEditor canvas'), g = cv.getContext('2d');
+      g.clearRect(0, 0, cv.width, cv.height); g.drawImage(bm, 0, 0); bm.close?.();
+      dibujando = false;
+      if (otraVez) dibujarEd();
+    }
+    const cerrarEditor = () => { $('stickerEditor').hidden = true; ed?.bm.close?.(); ed = null; };
+    $('stickerInput').addEventListener('change', async (e) => {
+      const file = e.target.files?.[0]; e.target.value = ''; if (!file) return;
+      try { const bm = await createImageBitmap(file, { imageOrientation: 'from-image' }); ed = { bm, cx: bm.width / 2, cy: bm.height / 2, zoom: 1 }; }
+      catch (err) { console.error(err); return window.aviso?.('No se pudo abrir esa imagen.'); }
+      $('stickerTexto').value = ''; $('stickerZoom').value = 1; $('stickerEditor').hidden = false; dibujarEd();
+      history.pushState({ chat: 1, stk: 1, stked: 1 }, '', '#chat');
+    });
+    $('stickerZoom').addEventListener('input', (e) => { if (ed) { ed.zoom = Number(e.target.value); dibujarEd(); } });
+    $('stickerTexto').addEventListener('input', () => dibujarEd());
+    { const cv = document.querySelector('#stickerEditor canvas'); let px = 0, py = 0, arr = false;
+      cv.addEventListener('pointerdown', (e) => { arr = true; px = e.clientX; py = e.clientY; cv.setPointerCapture(e.pointerId); });
+      cv.addEventListener('pointermove', (e) => {
+        if (!arr || !ed) return;
+        const esc = (Math.min(ed.bm.width, ed.bm.height) / ed.zoom) / cv.getBoundingClientRect().width;
+        ed.cx -= (e.clientX - px) * esc; ed.cy -= (e.clientY - py) * esc; px = e.clientX; py = e.clientY; dibujarEd();
+      });
+      ['pointerup', 'pointercancel'].forEach((ev) => cv.addEventListener(ev, () => { arr = false; })); }
+    $('stickerCancelar').addEventListener('click', () => { if (history.state?.stked) history.back(); else cerrarEditor(); });
+    $('stickerGuardar').addEventListener('click', async () => {
+      if (!ed) return; const b = $('stickerGuardar'); b.disabled = true;
+      const archivo = L.rutaArchivo(viaje, 'sticker', crypto.randomUUID());
+      try {
+        const blob = await M.hacerSticker(ed.bm, { x: ed.cx, y: ed.cy, zoom: ed.zoom }, $('stickerTexto').value);
+        const up = await sb.storage.from(M.BUCKET).upload(archivo, blob, { contentType: 'image/webp' });
+        if (up.error) throw up.error;
+        const id = archivo.split('/').pop().replace('.webp', '');
+        try { await db.doc('stickers/' + id).set({ archivo, autor: yo(), creado: Date.now() }); }
+        catch (err) { sb.storage.from(M.BUCKET).remove([archivo]); throw err; }
+        cerrarEditor(); ocultarStickers();
+        if (history.state?.stked) history.go(-2); else if (history.state?.stk) history.back();
+        mandarSticker({ archivo });
+      } catch (err) { console.error(err); window.aviso?.('No se pudo guardar el sticker. Probá de nuevo.'); }
+      finally { b.disabled = false; }
+    });
+
     async function abrirVisor(id) {
       const m = lista.find((x) => x.id === id); if (!m) return;
       const img = $('chatVisor').querySelector('img');
@@ -491,11 +649,13 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
       marcarVisto(); pintar();
       const cont = $('chatLista'); cont.scrollTop = cont.scrollHeight;
     }
-    function cerrarPanel() { ocultarAcciones(); $('chatPanel').hidden = true; document.documentElement.style.overflow = ''; marcarVisto(); pintar(); }
+    function cerrarPanel() { ocultarAcciones(); ocultarStickers(); cerrarEditor(); $('chatPanel').hidden = true; document.documentElement.style.overflow = ''; marcarVisto(); pintar(); }
     $('chatBarra').addEventListener('click', abrirPanel);
     $('chatBarra').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirPanel(); } });
     $('chatCerrar').addEventListener('click', () => { if (history.state?.chat) history.back(); else { history.replaceState(null, '', sinHash()); cerrarPanel(); } });
     window.addEventListener('popstate', () => {
+      if (!$('stickerEditor').hidden && !history.state?.stked) { cerrarEditor(); if (location.hash === '#chat' && history.state?.stk) return; }
+      if (!$('chatStickers').hidden && !history.state?.stk) { ocultarStickers(); if (location.hash === '#chat') return; }
       if (!$('chatVisor').hidden && !history.state?.foto) { cerrarVisor(); if (location.hash === '#chat') return; }
       if (!$('chatAcciones').hidden && !history.state?.acc) { ocultarAcciones(); if (location.hash === '#chat') return; }
       if (location.hash === '#chat') abrirPanel(); else if (abierto()) cerrarPanel();
