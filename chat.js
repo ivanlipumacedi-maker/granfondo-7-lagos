@@ -17,7 +17,8 @@
 #chatPanel header { display: flex; align-items: center; gap: 12px; padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px; background: var(--surface); border-bottom: 1px solid var(--line) }
 #chatPanel header button { background: none; border: 0; color: var(--ink); font-size: 1.5rem; padding: 4px 8px; line-height: 1 }
 #chatPanel header b { font-size: 1.05rem }
-#chatLista { flex: 1; overflow-y: auto; padding: 12px 12px 6px; display: flex; flex-direction: column; gap: 6px; overscroll-behavior: contain }
+#chatLista { flex: 1; overflow-y: auto; padding: 12px 12px 6px; display: flex; flex-direction: column; gap: 6px; overscroll-behavior: contain; scrollbar-width: none }
+#chatLista::-webkit-scrollbar { display: none } /* sin la rayita gris de la barra de desplazamiento al lado del micrófono */
 #chatLista::before { content: ""; flex: 1 }
 #chatLista .vacio { margin: auto; color: var(--muted); text-align: center; padding: 20px }
 #chatMas { align-self: center; margin-bottom: 6px }
