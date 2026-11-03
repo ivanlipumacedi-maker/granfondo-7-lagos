@@ -45,16 +45,26 @@
     document.head.appendChild(s);
   }));
 
+  // La IA corre en un worker que se reusa entre ediciones (la sesión del modelo tarda en armarse).
   let worker = null;
   const ia = () => worker || (worker = new Worker('ia-worker.js'));
+  const reiniciarIA = () => { if (worker) worker.terminate(); worker = null; };
 
-  let raiz = null;
+  let raiz = null, cerrarActual = null;
   function montar() {
     if (raiz) return;
-    const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+    const st = document.createElement('style'); st.textContent = CSS + `
+#editorDescartar { position: absolute; left: 10px; right: 10px; top: calc(60px + env(safe-area-inset-top, 0px)); z-index: 2; background: #fff; color: #111; border-radius: 14px; padding: 14px; box-shadow: 0 12px 30px rgba(0,0,0,.4) }
+#editorDescartar[hidden] { display: none }
+#editorDescartar p { margin: 0 0 10px; font-weight: 700 }
+#editorDescartar div { display: flex; gap: 8px; justify-content: flex-end }
+#editorFoto #editorDescartar button { background: #eee; color: #111 }
+#editorFoto #editorDescartar #editorDescartarSi { background: #c0392b; color: #fff }`;
+    document.head.appendChild(st);
     document.body.insertAdjacentHTML('beforeend', `
 <div id="editorFoto" hidden role="dialog" aria-label="Editar foto">
-  <div class="cab"><button type="button" id="editorCancelar" aria-label="Cancelar">✕</button><b>Editar foto</b><button type="button" id="editorGuardar">Guardar copia</button></div>
+  <div class="cab"><button type="button" id="editorCancelar" aria-label="Cancelar">✕</button><b>Editar foto</b><button type="button" id="editorGuardar" disabled>Guardar copia</button></div>
+  <div id="editorDescartar" hidden role="alertdialog" aria-label="Descartar cambios"><p>¿Descartar los cambios?</p><div><button type="button" id="editorDescartarNo">Seguir editando</button><button type="button" id="editorDescartarSi">Descartar</button></div></div>
   <div class="modos"><button type="button" id="editorModoIA" aria-pressed="false">✨ Borrar con IA</button><button type="button" id="editorModoAjustes" aria-pressed="false">🎚️ Ajustar y filtros</button></div>
   <div class="lienzo"><canvas class="foto"></canvas><canvas class="mascara" hidden></canvas></div>
   <div class="fr" hidden></div>
@@ -68,19 +78,28 @@
     raiz = document.getElementById('editorFoto');
   }
 
+  const abierto = () => !!raiz && !raiz.hidden;
+
   function abrir(blob, { alGuardar }) {
     montar();
+    if (abierto()) return; // ya hay una edición en curso (doble toque)
     const $ = (id) => document.getElementById(id);
     const foto = raiz.querySelector('canvas.foto'), masc = raiz.querySelector('canvas.mascara'), fr = raiz.querySelector('.fr'), herr = raiz.querySelector('[data-h="ia"]');
-    let trazos = [], trazo = null, fie = null, refDatos = {}, modo = null, ocupado = false, cambios = false;
+    let trazos = [], trazo = null, fie = null, refDatos = {}, modo = null, iaOcupada = false, guardando = false, cambios = false, saliendo = false;
     const ctl = new AbortController(), on = (el, ev, fn) => el.addEventListener(ev, fn, { signal: ctl.signal });
-    raiz.dataset.ia = '';
+    raiz.dataset.ia = ''; $('editorDescartar').hidden = true;
     $('editorNota').textContent = 'Pintá con el dedo lo que querés borrar.';
+    const hayCambios = () => cambios || trazos.length > 0 || !!fie;
+    const marcarCambio = () => { cambios = true; actualizarBotones(); };
+    function actualizarBotones() {
+      $('editorGuardar').disabled = guardando || iaOcupada || !(cambios || fie);
+      $('editorBorrarIA').disabled = iaOcupada; $('editorModoAjustes').disabled = iaOcupada; $('editorModoIA').disabled = iaOcupada;
+    }
 
     createImageBitmap(blob, { imageOrientation: 'from-image' }).then((bm) => {
       foto.width = masc.width = bm.width; foto.height = masc.height = bm.height;
       foto.getContext('2d').drawImage(bm, 0, 0); bm.close?.();
-    }).catch(() => { window.aviso?.('No se pudo abrir la foto.'); cerrar(); });
+    }).catch(() => { window.aviso?.('No se pudo abrir la foto.'); cerrar(true); });
 
     raiz.hidden = false; history.pushState({ ...(history.state || {}), editor: 1 }, '', location.hash || location.pathname + location.search);
 
@@ -90,25 +109,31 @@
       for (const t of trazos) { g.lineWidth = t.w; g.beginPath(); t.p.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); if (t.p.length === 1) g.lineTo(t.p[0][0] + 0.1, t.p[0][1]); g.stroke(); }
     }
     const punto = (e) => { const r = masc.getBoundingClientRect(); return [(e.clientX - r.left) * masc.width / r.width, (e.clientY - r.top) * masc.height / r.height]; };
-    on(masc, 'pointerdown', (e) => { if (ocupado) return; masc.setPointerCapture(e.pointerId); const r = masc.getBoundingClientRect(); trazo = { w: Number($('editorPincel').value) * masc.width / r.width, p: [punto(e)] }; trazos.push(trazo); pintarMascara(); });
+    on(masc, 'pointerdown', (e) => { if (iaOcupada) return; masc.setPointerCapture(e.pointerId); const r = masc.getBoundingClientRect(); trazo = { w: Number($('editorPincel').value) * masc.width / r.width, p: [punto(e)] }; trazos.push(trazo); pintarMascara(); });
     on(masc, 'pointermove', (e) => { if (!trazo) return; trazo.p.push(punto(e)); pintarMascara(); });
     const fin = () => { trazo = null; };
     on(masc, 'pointerup', fin); on(masc, 'pointercancel', fin);
     on($('editorDeshacer'), 'click', () => { trazos.pop(); pintarMascara(); });
 
     function ponerModo(m) {
+      if (iaOcupada) return;
       modo = m;
       $('editorModoIA').setAttribute('aria-pressed', String(m === 'ia')); $('editorModoAjustes').setAttribute('aria-pressed', String(m === 'ajustes'));
       herr.hidden = m !== 'ia'; masc.hidden = m !== 'ia';
       raiz.querySelector('.lienzo').hidden = m === 'ajustes'; fr.hidden = m !== 'ajustes';
       if (m === 'ajustes') abrirAjustes(); else cerrarAjustes(true);
+      actualizarBotones();
     }
     on($('editorModoIA'), 'click', () => ponerModo('ia'));
     on($('editorModoAjustes'), 'click', () => ponerModo('ajustes'));
 
+    function terminoIA(msgError) {
+      iaOcupada = false; actualizarBotones();
+      if (msgError) { console.error(msgError); raiz.dataset.ia = 'error'; reiniciarIA(); $('editorNota').textContent = 'No se pudo borrar. Revisá la señal (la primera vez hay que bajar la IA) y probá de nuevo.'; }
+    }
     on($('editorBorrarIA'), 'click', () => {
-      if (ocupado || !trazos.length) return;
-      ocupado = true; $('editorBorrarIA').disabled = true; raiz.dataset.ia = 'trabajando';
+      if (iaOcupada || !trazos.length) return;
+      iaOcupada = true; actualizarBotones(); raiz.dataset.ia = 'trabajando';
       const W = foto.width, H = foto.height;
       // máscara: lo pintado (agrandado 6 px para que no queden bordes) = 0, el resto = 255
       const mc = document.createElement('canvas'); mc.width = W; mc.height = H; const mg = mc.getContext('2d');
@@ -117,16 +142,19 @@
       const md = mg.getImageData(0, 0, W, H).data, px = foto.getContext('2d').getImageData(0, 0, W, H).data, N = W * H;
       const img = new Uint8Array(3 * N), mask = new Uint8Array(N);
       for (let i = 0; i < N; i++) { img[i] = px[i * 4]; img[N + i] = px[i * 4 + 1]; img[2 * N + i] = px[i * 4 + 2]; mask[i] = md[i * 4 + 3] > 0 ? 0 : 255; }
-      const w = ia();
+      let w;
+      try { w = ia(); } catch (e) { return terminoIA(e); }
       $('editorNota').textContent = 'Borrando…';
+      // si el worker no llega a cargar (sin señal, archivo que falta) no hay mensaje: se avisa por onerror
+      w.onerror = (e) => { e.preventDefault?.(); terminoIA(e.message || 'el worker de la IA no cargó'); };
+      w.onmessageerror = () => terminoIA('mensaje ilegible de la IA');
       w.onmessage = ({ data: d }) => {
         if (d.tipo === 'progreso') { $('editorNota').textContent = d.preparando ? 'Preparando la IA…' : `Bajando la IA (solo la primera vez): ${Math.round(d.bajado / 1048576)} de ${Math.round(d.total / 1048576)} MB`; return; }
-        ocupado = false; $('editorBorrarIA').disabled = false;
-        if (d.tipo === 'error') { console.error(d.msg); raiz.dataset.ia = 'error'; $('editorNota').textContent = 'No se pudo borrar. Revisá la señal (la primera vez hay que bajar la IA) y probá de nuevo.'; return; }
+        if (d.tipo === 'error') return terminoIA(d.msg);
         const out = foto.getContext('2d').createImageData(W, H), o = out.data, r = d.res;
         for (let i = 0; i < N; i++) { o[i * 4] = r[i]; o[i * 4 + 1] = r[N + i]; o[i * 4 + 2] = r[2 * N + i]; o[i * 4 + 3] = 255; }
         foto.getContext('2d').putImageData(out, 0, 0);
-        trazos = []; pintarMascara(); cambios = true; raiz.dataset.ia = 'listo';
+        trazos = []; pintarMascara(); raiz.dataset.ia = 'listo'; terminoIA(); marcarCambio();
         $('editorNota').textContent = 'Listo. Podés pintar otra cosa o guardar.';
       };
       w.postMessage({ img, mask, W, H }, [img.buffer, mask.buffer]);
@@ -135,7 +163,7 @@
     async function abrirAjustes() {
       if (fie) return;
       try {
-        const FIE = await cargarFilerobot(); if (modo !== 'ajustes') return;
+        const FIE = await cargarFilerobot(); if (modo !== 'ajustes' || ctl.signal.aborted) return;
         const fuente = await new Promise((r) => foto.toBlob(r, 'image/jpeg', 0.95)), url = URL.createObjectURL(fuente);
         const { TABS } = FIE; refDatos = {};
         fie = new FIE(fr, {
@@ -147,39 +175,64 @@
           theme: { typography: { fontFamily: 'system-ui, sans-serif' } },
         });
         fie.render({ onClose: () => {} });
-        fie._url = url;
+        fie._url = url; actualizarBotones();
       } catch (e) { console.error(e); window.aviso?.(e.message || 'No se pudo abrir el editor.'); ponerModo('ia'); }
     }
     // al salir de "Ajustar", lo editado pasa al lienzo para seguir (o guardar)
     function cerrarAjustes(aplicar) {
       if (!fie) return;
-      if (aplicar) { try { const d = refDatos.current?.({}); const c = d?.imageData?.imageCanvas; if (c) { foto.width = masc.width = c.width; foto.height = masc.height = c.height; foto.getContext('2d').drawImage(c, 0, 0); cambios = true; } } catch (e) { console.error(e); } }
+      if (aplicar) {
+        try {
+          const d = refDatos.current?.({}); const c = d?.imageData?.imageCanvas;
+          if (c) { foto.width = masc.width = c.width; foto.height = masc.height = c.height; foto.getContext('2d').drawImage(c, 0, 0); trazos = []; pintarMascara(); cambios = true; }
+        } catch (e) { console.error(e); }
+      }
       try { fie.terminate(); } catch {}
       URL.revokeObjectURL(fie._url); fie = null; fr.innerHTML = '';
     }
 
     async function terminar(canvas) {
-      if (ocupado) return; ocupado = true; $('editorGuardar').disabled = true;
+      if (guardando) return; guardando = true; actualizarBotones();
       try {
         const b = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.92));
         await alGuardar(b);
         window.aviso?.('Guardada como foto nueva en el álbum.');
-        cerrar();
+        cerrar(true);
       } catch (e) { console.error(e); window.aviso?.('No se pudo guardar. Probá de nuevo.'); }
-      finally { ocupado = false; $('editorGuardar').disabled = false; }
+      finally { guardando = false; if (abierto()) actualizarBotones(); }
     }
     on($('editorGuardar'), 'click', () => {
       if (modo === 'ajustes' && fie) { const d = refDatos.current?.({}); const c = d?.imageData?.imageCanvas; if (c) return terminar(c); }
       terminar(foto);
     });
 
-    function ocultar() { cerrarAjustes(false); ctl.abort(); raiz.hidden = true; trazos = []; if (worker && ocupado) { worker.terminate(); worker = null; } ocupado = false; }
-    function cerrar() { if (raiz.hidden) return; if (history.state?.editor) history.back(); else ocultar(); }
-    on($('editorCancelar'), 'click', cerrar);
-    on(window, 'popstate', () => { if (!raiz.hidden && !history.state?.editor) ocultar(); });
+    function ocultar() {
+      cerrarAjustes(false); ctl.abort(); raiz.hidden = true; trazos = [];
+      if (iaOcupada) reiniciarIA(); // si quedó trabajando, se corta; si no, el worker queda listo para la próxima
+      iaOcupada = false; cerrarActual = null;
+    }
+    // sin cambios (o confirmado): cierra; con cambios: pregunta antes
+    function cerrar(forzar) {
+      if (raiz.hidden) return;
+      if (!forzar && hayCambios()) { $('editorDescartar').hidden = false; return; }
+      $('editorDescartar').hidden = true; saliendo = true;
+      if (history.state?.editor) history.back(); else ocultar();
+    }
+    cerrarActual = () => cerrar(true);
+    on($('editorCancelar'), 'click', () => cerrar(false));
+    on($('editorDescartarNo'), 'click', () => { $('editorDescartar').hidden = true; });
+    on($('editorDescartarSi'), 'click', () => cerrar(true));
+    on(window, 'popstate', () => {
+      if (raiz.hidden || history.state?.editor) return;
+      if (!saliendo && hayCambios() && $('editorDescartar').hidden) {
+        // atrás con cambios: se vuelve a poner la entrada y se pregunta
+        history.pushState({ ...(history.state || {}), editor: 1 }, '', location.hash || location.pathname + location.search);
+        $('editorDescartar').hidden = false; return;
+      }
+      ocultar();
+    });
     ponerModo('ia');
-    void cambios;
   }
 
-  window.EditorFoto = { abrir };
+  window.EditorFoto = { abrir, abierto, cerrar: () => cerrarActual?.(), _reiniciarIA: reiniciarIA };
 })();

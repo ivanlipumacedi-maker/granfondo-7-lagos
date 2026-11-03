@@ -25,19 +25,19 @@
   /** URLs firmadas con caché; se renuevan cuando faltan menos de 5 minutos.
    *  Sin red: backoff global (no se reintenta hasta reintentarYa() o 30 s). Ruta inexistente: no se repide. */
   const cache = new Map(), rotas = new Set();
-  let esperarHasta = 0;
+  const esperas = new Map(); // bucket → no reintentar antes de
   const BACKOFF_MS = 30 * 1000;
   const vigente = (p) => (cache.get(p)?.vence ?? 0) - Date.now() > MARGEN_MS;
-  const puedeFirmar = (p) => !!p && !rotas.has(p) && Date.now() >= esperarHasta;
-  const reintentarYa = () => { esperarHasta = 0; };
+  const puedeFirmar = (p, bucket = BUCKET) => !!p && !rotas.has(p) && Date.now() >= (esperas.get(bucket) || 0);
+  const reintentarYa = () => { esperas.clear(); };
   async function firmar(sb, paths, bucket = BUCKET) {
     const faltan = [...new Set(paths)].filter((p) => p && !vigente(p) && !rotas.has(p));
     if (faltan.length) {
-      if (Date.now() < esperarHasta) throw new Error('esperando para reintentar firmas');
+      if (Date.now() < (esperas.get(bucket) || 0)) throw new Error('esperando para reintentar firmas');
       let res;
       try { res = await sb.storage.from(bucket).createSignedUrls(faltan, VIDA_S); }
-      catch (e) { esperarHasta = Date.now() + BACKOFF_MS; throw e; }
-      if (res.error) { esperarHasta = Date.now() + BACKOFF_MS; throw res.error; }
+      catch (e) { esperas.set(bucket, Date.now() + BACKOFF_MS); throw e; }
+      if (res.error) { esperas.set(bucket, Date.now() + BACKOFF_MS); throw res.error; }
       const ahora = Date.now();
       for (const d of res.data || []) {
         if (d.signedUrl && !d.error) cache.set(d.path, { url: d.signedUrl, vence: ahora + VIDA_S * 1000 });

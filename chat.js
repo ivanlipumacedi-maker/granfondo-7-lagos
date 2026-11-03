@@ -479,14 +479,17 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
         window.aviso?.('No se pudo mandar la foto. Revisá la conexión y probá de nuevo.');
       } finally { URL.revokeObjectURL(tmp.local); }
     }
-    $('chatFoto').addEventListener('change', (e) => { const f = e.target.files?.[0]; e.target.value = ''; hojaFoto(false); enviarFoto(f); });
+    $('chatFoto').addEventListener('change', (e) => { const f = e.target.files?.[0]; e.target.value = ''; enviarFoto(f); });
     window.chatEnviarFoto = enviarFoto;
     // 📷: cámara del álbum (si está) o la galería
-    function hojaFoto(abrir) { $('chatFotoHoja').hidden = !abrir; $('chatFotoBtn').setAttribute('aria-expanded', String(abrir)); }
-    $('chatFotoBtn').addEventListener('click', () => { if (!window.abrirCamara) return $('chatFoto').click(); hojaFoto($('chatFotoHoja').hidden); });
-    $('chatFotoCamara').addEventListener('click', () => { hojaFoto(false); window.abrirCamara?.({ alChat: true }); });
-    $('chatFotoHoja').querySelector('label').addEventListener('click', () => setTimeout(() => hojaFoto(false), 0));
-    document.addEventListener('pointerdown', (e) => { if (!$('chatFotoHoja').hidden && !e.target.closest('#chatFotoHoja, #chatFotoBtn')) hojaFoto(false); });
+    // la hoja tiene su lugar en el historial: atrás la cierra sin cerrar el chat
+    function mostrarHoja(si) { $('chatFotoHoja').hidden = !si; $('chatFotoBtn').setAttribute('aria-expanded', String(si)); }
+    function abrirHoja() { mostrarHoja(true); history.pushState({ ...(history.state || {}), chat: 1, hoja: 1 }, '', '#chat'); }
+    function cerrarHoja() { if ($('chatFotoHoja').hidden) return; if (history.state?.hoja) history.back(); else mostrarHoja(false); }
+    $('chatFotoBtn').addEventListener('click', () => { if (!window.abrirCamara) return $('chatFoto').click(); if ($('chatFotoHoja').hidden) abrirHoja(); else cerrarHoja(); });
+    $('chatFotoCamara').addEventListener('click', () => { mostrarHoja(false); window.abrirCamara?.({ alChat: true, reemplazar: !!history.state?.hoja }); });
+    $('chatFotoHoja').querySelector('label').addEventListener('click', () => setTimeout(cerrarHoja, 0));
+    document.addEventListener('pointerdown', (e) => { if (!$('chatFotoHoja').hidden && !e.target.closest('#chatFotoHoja, #chatFotoBtn')) cerrarHoja(); });
 
     /* ---------- stickers: selector (Nuestros / GIPHY) y editor ---------- */
     let stickers = [], editando = false;
@@ -695,18 +698,19 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       marcarVisto(); pintar();
       const cont = $('chatLista'); cont.scrollTop = cont.scrollHeight;
     }
-    function cerrarPanel() { ocultarAcciones(); ocultarStickers(); cerrarEditor(); $('chatPanel').hidden = true; document.documentElement.style.overflow = ''; marcarVisto(); pintar(); }
+    function cerrarPanel() { ocultarAcciones(); ocultarStickers(); cerrarEditor(); mostrarHoja(false); $('chatPanel').hidden = true; document.documentElement.style.overflow = ''; marcarVisto(); pintar(); }
     $('chatBarra').addEventListener('click', abrirPanel);
     $('chatBarra').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirPanel(); } });
     $('chatCerrar').addEventListener('click', () => { if (history.state?.chat) history.back(); else { history.replaceState(null, '', sinHash()); cerrarPanel(); } });
     window.addEventListener('popstate', () => {
+      if (!$('chatFotoHoja').hidden && !history.state?.hoja) { mostrarHoja(false); if (location.hash === '#chat') return; }
       if (!$('stickerEditor').hidden && !history.state?.stked) { cerrarEditor(); if (location.hash === '#chat' && history.state?.stk) return; }
       if (!$('chatStickers').hidden && !history.state?.stk) { ocultarStickers(); if (location.hash === '#chat') return; }
       if (!$('chatVisor').hidden && !history.state?.foto) { cerrarVisor(); if (location.hash === '#chat') return; }
       if (!$('chatAcciones').hidden && !history.state?.acc) { ocultarAcciones(); if (location.hash === '#chat') return; }
       if (location.hash === '#chat') abrirPanel(); else if (abierto()) cerrarPanel();
     });
-    navigator.serviceWorker?.addEventListener('message', (e) => { if (e.data?.abrir === 'chat') abrirPanel(); });
+    navigator.serviceWorker?.addEventListener('message', (e) => { if (e.data?.abrir === 'chat') { window.cerrarCapas?.(); abrirPanel(); } });
 
     /* ---------- escribir ---------- */
     function autoAlto() { const t = $('chatTexto'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 130) + 'px'; }

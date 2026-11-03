@@ -24,6 +24,9 @@
     let cuenta = 0, corriendo = false, otraVez = false, intento = 0, timer = null;
     const estado = (e) => { try { alEstado({ ...e, pendientes: cuenta }); } catch (x) { console.error(x); } };
     const contar = async () => { cuenta = await op('readonly', (s) => s.count()); return cuenta; };
+    // errores que no se arreglan reintentando (formato o tamaño rechazado, dato inválido): la foto se descarta
+    const PERMANENTES = new Set(['400', '413', '415', '422', '23514', '22P02', '23502']);
+    const esPermanente = (e) => PERMANENTES.has(String(e?.statusCode ?? e?.status ?? '')) || PERMANENTES.has(String(e?.code ?? ''));
 
     async function subirUna(it) {
       const archivo = A.rutaFoto(viaje, it.id), mini = A.rutaMini(archivo);
@@ -51,9 +54,18 @@
           if (uso.error) throw uso.error;
           items.sort((a, b) => (a.tomada < b.tomada ? -1 : 1));
           for (const it of items) {
-            if (A.espacio(Number(uso.data) + it.foto.size, A.LIMITE_BYTES).estado === 'lleno') { estado({ estado: 'lleno' }); return; }
+            if (A.espacio(Number(uso.data) + it.foto.size + it.mini.size, A.LIMITE_BYTES).estado === 'lleno') { estado({ estado: 'lleno' }); return; }
             estado({ estado: 'subiendo' });
-            const fila = await subirUna(it);
+            let fila;
+            try { fila = await subirUna(it); }
+            catch (e) {
+              if (!esPermanente(e)) throw e;
+              console.error('album: foto descartada', e);
+              const ruta = A.rutaFoto(viaje, it.id); sb.storage.from(BUCKET).remove([ruta, A.rutaMini(ruta)]).catch(() => {});
+              await op('readwrite', (s) => s.delete(it.id)); await contar();
+              estado({ estado: 'descartada' });
+              continue;
+            }
             uso.data = Number(uso.data) + it.foto.size + it.mini.size;
             await op('readwrite', (s) => s.delete(it.id));
             await contar(); intento = 0;

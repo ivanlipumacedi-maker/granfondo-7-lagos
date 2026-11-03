@@ -51,7 +51,7 @@
   </div>
 </div>`);
 
-    let fotos = [], uso = 0, pend = 0, estadoCola = 'listo', actual = null;
+    let fotos = [], uso = 0, pend = 0, estadoCola = 'listo', actual = null, borrando = false;
     const nom = (k) => nombres()[k] || (k === 'A' ? 'Lipu' : 'Guti');
     const fmtHora = new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
@@ -101,25 +101,38 @@
       const [r, u] = await Promise.all([sb.from('fotos').select('*').order('tomada', { ascending: false }).limit(1000), sb.rpc('album_uso')]);
       if (r.error) return console.error(r.error);
       fotos = r.data || []; if (!u.error) uso = Number(u.data) || 0;
-      pintar(); if (actual) { const f = fotos.find((x) => x.id === actual.id); if (!f) cerrarVisor(); }
+      pintar(); if (actual && !fotos.some((x) => x.id === actual.id)) salirDeFotoBorrada();
     }
-    const refrescarUso = async () => { const u = await sb.rpc('album_uso'); if (!u.error) { uso = Number(u.data) || 0; pintarEstado(); } };
+    async function refrescarUso() { const u = await sb.rpc('album_uso'); if (!u.error) { uso = Number(u.data) || 0; pintarEstado(); } }
+    let usoTimer = 0; const refrescarUsoLuego = () => { clearTimeout(usoTimer); usoTimer = setTimeout(refrescarUso, 600); };
+    window.__albumUso = async () => { await refrescarUso(); return uso; };
 
     const cola = window.AlbumCola.crear({
       sb, viaje,
-      alSubir: (fila) => { fotos = A.fusionar(fotos, fila); uso += fila.bytes || 0; pintar(); canal.send({ type: 'broadcast', event: 'album', payload: { fila } }); },
-      alEstado: (e) => { pend = e.pendientes; estadoCola = e.estado; if (camara) pintarEstado(); },
+      alSubir: (fila) => { fotos = A.fusionar(fotos, fila); pintar(); refrescarUsoLuego(); canal.send({ type: 'broadcast', event: 'album', payload: { fila } }); },
+      alEstado: (e) => {
+        pend = e.pendientes; estadoCola = e.estado; if (camara) pintarEstado();
+        if (e.estado === 'descartada') window.aviso?.('Una foto no se pudo subir (el formato no es válido) y se descartó.');
+      },
     });
     const camara = window.Camara.crear({
       cola, yo,
-      alTocarUltima: () => { camara.cerrar(); },
+      alTocarUltima: () => { irAlAlbum = true; camara.cerrar(); seguirAlAlbum(); },
       mandarAlChat: (blob) => window.chatEnviarFoto?.(new File([blob], 'foto.jpg', { type: 'image/jpeg' })),
     });
     window.abrirCamara = (op) => camara.abrir(op);
+    let irAlAlbum = false;
+    function seguirAlAlbum() {
+      if (!irAlAlbum || camara.abierta()) return;
+      if ($('chatPanel') && !$('chatPanel').hidden) return $('chatCerrar').click(); // el chat se cierra con su propio atrás; seguimos en el popstate
+      irAlAlbum = false; window.showTab?.('album'); raiz.scrollIntoView({ block: 'start' });
+    }
+    // una notificación del chat con la cámara/visor/editor abiertos: se cierran para que el chat quede a la vista
+    window.cerrarCapas = () => { if (camara.abierta()) camara.cerrar(); if (window.EditorFoto?.abierto()) window.EditorFoto.cerrar(); if (!visor.hidden) cerrarVisor(); };
 
     canal.on('broadcast', { event: 'album' }, ({ payload }) => {
-      if (payload?.fila?.id && payload.fila.viaje === viaje) { fotos = A.fusionar(fotos, payload.fila); uso += payload.fila.bytes || 0; pintar(); }
-      if (payload?.borrado) { fotos = A.quitar(fotos, payload.borrado); pintar(); refrescarUso(); if (actual?.id === payload.borrado) cerrarVisor(); }
+      if (payload?.fila?.id && payload.fila.viaje === viaje) { fotos = A.fusionar(fotos, payload.fila); pintar(); refrescarUsoLuego(); }
+      if (payload?.borrado) { fotos = A.quitar(fotos, payload.borrado); pintar(); refrescarUso().then(() => cola.procesar()); if (actual?.id === payload.borrado) salirDeFotoBorrada(); }
     });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) cargar(); });
     addEventListener('online', () => { M.reintentarYa(); cargar(); });
@@ -152,12 +165,18 @@
     }
     function abrirVisor(id) {
       const f = fotos.find((x) => x.id === id); if (!f) return;
+      if (!visor.hidden) return mostrar(f); // ya abierto: solo cambia la foto (sin otra entrada de atrás)
       visor.hidden = false; history.pushState({ ...(history.state || {}), albumFoto: 1 }, '', location.hash || location.pathname + location.search);
       mostrar(f);
     }
     function cerrarVisor() { visor.hidden = true; actual = null; img.removeAttribute('src'); }
+    function salirDeFotoBorrada() { if (visor.hidden) return; if (window.EditorFoto?.abierto()) return; /* al volver del editor se cierra */ if (history.state?.albumFoto) history.back(); else cerrarVisor(); }
     $('albumVisorCerrar').addEventListener('click', () => { if (history.state?.albumFoto) history.back(); else cerrarVisor(); });
-    addEventListener('popstate', () => { if (!visor.hidden && !history.state?.albumFoto) cerrarVisor(); });
+    addEventListener('popstate', () => {
+      if (!visor.hidden && !history.state?.albumFoto) cerrarVisor();
+      else if (!visor.hidden && actual && !history.state?.editor && !fotos.some((x) => x.id === actual.id)) setTimeout(salirDeFotoBorrada, 0);
+      seguirAlAlbum();
+    });
     $('albumGrilla').addEventListener('click', (e) => { const c = e.target.closest('[data-id]'); if (c) abrirVisor(c.dataset.id); });
 
     // pellizcar, arrastrar con zoom, deslizar para pasar de foto, doble toque para acercar
@@ -206,9 +225,10 @@
       try { const b = await blobDe(actual); window.chatEnviarFoto?.(new File([b], 'foto.jpg', { type: 'image/jpeg' })); window.aviso?.('Mandada al chat.'); }
       catch (x) { console.error(x); window.aviso?.('No se pudo mandar al chat. Revisá la señal.'); }
     });
+    let abriendoEditor = false;
     $('albumEditar').addEventListener('click', async () => {
-      if (!actual || !window.EditorFoto) return;
-      const f = actual;
+      if (!actual || !window.EditorFoto || abriendoEditor || window.EditorFoto.abierto()) return;
+      const f = actual; abriendoEditor = true;
       try {
         const b = await blobDe(f);
         window.EditorFoto.abrir(b, {
@@ -218,15 +238,21 @@
           },
         });
       } catch (x) { console.error(x); window.aviso?.('No se pudo abrir la foto para editar. Revisá la señal.'); }
+      finally { abriendoEditor = false; }
     });
     $('albumBorrar').addEventListener('click', async (e) => {
       const b = e.currentTarget; if (!actual || actual.autor !== yo()) return;
       if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = '¿Borrar? Tocá de nuevo'; setTimeout(() => { b.classList.remove('armed'); b.textContent = 'Borrar'; }, 3000); return; }
-      const f = actual;
-      const r = await sb.from('fotos').delete().eq('id', f.id).select('id');
-      if (r.error || !r.data?.length) { console.error(r.error); return window.aviso?.('No se pudo borrar. Probá de nuevo.'); }
-      sb.storage.from('album').remove([f.archivo, f.mini]);
-      fotos = A.quitar(fotos, f.id); uso = Math.max(0, uso - (f.bytes || 0)); pintar();
+      if (borrando) return;
+      const f = actual; borrando = true;
+      try {
+        const r = await sb.from('fotos').delete().eq('id', f.id).select('id');
+        if (r.error || !r.data?.length) { console.error(r.error); return window.aviso?.('No se pudo borrar. Probá de nuevo.'); }
+        let rm = await sb.storage.from('album').remove([f.archivo, f.mini]);
+        if (rm.error) rm = await sb.storage.from('album').remove([f.archivo, f.mini]); // un reintento: si no, el archivo ocupa lugar
+        if (rm.error) console.error('álbum: no se pudo borrar el archivo', rm.error);
+      } finally { borrando = false; }
+      fotos = A.quitar(fotos, f.id); pintar(); refrescarUso().then(() => cola.procesar());
       canal.send({ type: 'broadcast', event: 'album', payload: { borrado: f.id } });
       if (history.state?.albumFoto) history.back(); else cerrarVisor();
     });

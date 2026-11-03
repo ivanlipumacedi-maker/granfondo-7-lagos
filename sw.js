@@ -1,6 +1,24 @@
-// Service worker de Rumbo al Sur: solo muestra las notificaciones push.
+// Service worker de Rumbo al Sur: notificaciones push y caché de la IA de borrado (para usarla sin señal).
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+
+// La IA (worker, onnxruntime y modelo) se guarda la primera vez que se usa y después se sirve desde el teléfono.
+const CACHE_IA = 'rumbo-ia-v1';
+const esIA = (u) => u.origin === self.location.origin && /\/(ia-worker\.js|vendor\/ort\/[^/]+|modelos\/[^/]+\.onnx)$/.test(u.pathname);
+self.addEventListener('fetch', (e) => {
+  if (e.request.method !== 'GET') return;
+  const u = new URL(e.request.url);
+  if (!esIA(u)) return; // el resto de la app va directo a la red, como siempre
+  const clave = u.origin + u.pathname; // sin ?v=
+  e.respondWith((async () => {
+    const cache = await caches.open(CACHE_IA);
+    const guardada = await cache.match(clave);
+    if (guardada) return guardada;
+    const r = await fetch(e.request);
+    if (r.ok) e.waitUntil(cache.put(clave, r.clone()));
+    return r;
+  })());
+});
 
 self.addEventListener('push', (e) => {
   let d = {};

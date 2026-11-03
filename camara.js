@@ -85,25 +85,30 @@
 </div>`);
     const raiz = document.getElementById('camara'), video = raiz.querySelector('video');
     const q = (c) => raiz.querySelector(`[data-c="${c}"]`);
-    let stream = null, track = null, caps = {}, camaras = [], idxCam = 0, frontal = false, zoom = 1, ultima = null, alChat = false, ocupado = false;
+    let stream = null, track = null, caps = {}, camaras = [], hayFrontal = true, idxCam = 0, frontal = false, zoom = 1, ultima = null, alChat = false, ocupado = false, turno = 0, nPend = 0;
     let segs = 0; const TIMERS = [0, 3, 10];
     try { if (localStorage.getItem('camGrilla') === '1') { raiz.querySelector('.grilla').hidden = false; q('grilla').setAttribute('aria-pressed', 'true'); } } catch {}
 
-    const soltar = () => { stream?.getTracks().forEach((t) => t.stop()); stream = null; track = null; video.srcObject = null; };
+    const soltar = () => { turno++; stream?.getTracks().forEach((t) => t.stop()); stream = null; track = null; video.srcObject = null; };
     function error(t) { const e = raiz.querySelector('.error'); e.textContent = t; e.hidden = !t; }
 
     async function encender() {
-      soltar(); error('');
+      soltar(); error(''); const mio = turno;
       const fino = { width: { ideal: 4096 }, height: { ideal: 3072 } };
       const video0 = frontal ? { facingMode: 'user', ...fino } : camaras[idxCam] ? { deviceId: { exact: camaras[idxCam] }, ...fino } : { facingMode: { ideal: 'environment' }, ...fino };
-      try { stream = await navigator.mediaDevices.getUserMedia({ video: video0, audio: false }); }
+      let nuevo;
+      try { nuevo = await navigator.mediaDevices.getUserMedia({ video: video0, audio: false }); }
       catch (e) {
+        if (mio !== turno) return;
         console.error(e);
         return error(e?.name === 'NotAllowedError' ? 'Chrome no tiene permiso para usar la cámara. Tocá el candado de la barra de direcciones, habilitá la cámara y volvé a abrirla.' : 'No se pudo abrir la cámara. Cerrala y probá de nuevo.');
       }
-      if (raiz.hidden) return soltar(); // se cerró mientras pedía permiso
+      // mientras pedía la cámara: se cerró, se pasó a segundo plano o se pidió otra lente → esta no sirve
+      if (mio !== turno || raiz.hidden || document.hidden) { nuevo.getTracks().forEach((t) => t.stop()); return; }
+      stream = nuevo;
       track = stream.getVideoTracks()[0]; video.srcObject = stream; video.classList.toggle('espejo', frontal);
       if (!camaras.length && !frontal) await listarCamaras();
+      if (mio !== turno) return;
       caps = track.getCapabilities?.() || {};
       montarControles();
     }
@@ -114,6 +119,7 @@
         // las traseras primero; Chrome en Android las etiqueta "facing back"
         const traseras = ds.filter((d) => /back|rear|trasera|environment/i.test(d.label));
         camaras = (traseras.length ? traseras : ds).map((d) => d.deviceId);
+        hayFrontal = !traseras.length || ds.some((d) => /front|user|frontal/i.test(d.label));
         const actual = track?.getSettings?.().deviceId; idxCam = Math.max(0, camaras.indexOf(actual));
       } catch (e) { console.error(e); }
     }
@@ -133,7 +139,7 @@
       const ex = caps.exposureCompensation, er = q('expRango');
       q('exp').hidden = !(ex && ex.max > ex.min); q('exp').setAttribute('aria-pressed', 'false'); er.hidden = true;
       if (ex) Object.assign(er, { min: ex.min, max: ex.max, step: ex.step || 0.1, value: track.getSettings?.().exposureCompensation ?? 0 });
-      q('lente').hidden = camaras.length < 1 && !navigator.mediaDevices;
+      q('lente').hidden = camaras.length + (hayFrontal ? 1 : 0) < 2;
     }
 
     let zPend = null;
@@ -179,7 +185,7 @@
           else { frontal = false; idxCam = 0; }
           return encender();
         case 'disparo': return disparar();
-        case 'ultima': if (ultima) alTocarUltima(ultima.id); return;
+        case 'ultima': if (ultima) alTocarUltima(ultima.id, alChat); return;
         case 'alchat': if (ultima && mandarAlChat) { mandarAlChat(ultima.foto); b.hidden = true; } return;
       }
     });
@@ -190,7 +196,8 @@
       if (!track || ocupado) return;
       ocupado = true;
       try {
-        for (let s = segs; s > 0; s--) { const c = raiz.querySelector('.cuenta'); c.hidden = false; c.textContent = s; await new Promise((r) => setTimeout(r, 1000)); if (raiz.hidden) return; }
+        for (let s = segs; s > 0; s--) { const c = raiz.querySelector('.cuenta'); c.hidden = false; c.textContent = s; await new Promise((r) => setTimeout(r, 1000)); if (raiz.hidden || document.hidden || !track) return; }
+        if (!track) return;
         raiz.querySelector('.cuenta').hidden = true;
         const d = raiz.querySelector('.destello'); d.classList.remove('si'); void d.offsetWidth; d.classList.add('si');
         let crudo = null;
@@ -203,18 +210,20 @@
         const p = await preparar(crudo), id = crypto.randomUUID();
         ultima = { id, foto: p.foto };
         const u = q('ultima'); u.innerHTML = `<img alt="Última foto"><span hidden></span>`; const url = URL.createObjectURL(p.mini); u.querySelector('img').src = url; u.querySelector('img').onload = () => URL.revokeObjectURL(url);
-        q('alchat').hidden = !(alChat && mandarAlChat);
+        q('alchat').hidden = !(alChat && mandarAlChat); pendientes(nPend);
         await cola.agregar({ id, foto: p.foto, mini: p.mini, ancho: p.ancho, alto: p.alto, autor: yo(), tomada: new Date().toISOString() });
       } catch (e) {
         console.error(e); window.aviso?.('No se pudo guardar la foto. Probá de nuevo.');
       } finally { ocupado = false; raiz.querySelector('.cuenta').hidden = true; }
     }
 
-    function pendientes(n) { const s = q('ultima').querySelector('span'); if (s) { s.hidden = !n; s.textContent = n ? '↑' + n : ''; } }
+    function pendientes(n) { nPend = n; const s = q('ultima').querySelector('span'); if (s) { s.hidden = !n; s.textContent = n ? '↑' + n : ''; } }
 
     function abrir(op = {}) {
       alChat = !!op.alChat; q('alchat').hidden = true;
-      raiz.hidden = false; history.pushState({ ...(history.state || {}), cam: 1 }, '', location.hash || location.pathname + location.search);
+      raiz.hidden = false;
+      const st = { ...(history.state || {}), cam: 1 }; delete st.hoja;
+      history[op.reemplazar ? 'replaceState' : 'pushState'](st, '', location.hash || location.pathname + location.search);
       encender();
     }
     function ocultar() { raiz.hidden = true; soltar(); raiz.querySelector('.cuenta').hidden = true; }

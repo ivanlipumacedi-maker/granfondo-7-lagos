@@ -183,6 +183,9 @@ label.f input { font-size: 16px; font-weight: 400; color: var(--ink) }
 
 .empty { border: 1px dashed var(--line); border-radius: 12px; padding: 18px; color: var(--muted); text-align: center }
 .status { font-size: .8rem; color: var(--muted); text-align: center }
+#toast { position: fixed; z-index: 200; left: 50%; top: calc(14px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); max-width: min(92vw, 460px); width: max-content;
+  background: var(--ink); color: var(--bg); border-radius: 12px; padding: 11px 16px; font-weight: 600; font-size: .95rem; box-shadow: 0 10px 30px rgba(0,0,0,.35); pointer-events: none }
+#toast[hidden] { display: none }
 [hidden] { display: none !important }
 img { max-width: 100% }
 :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px) }
@@ -620,7 +623,14 @@ async function escribir(fn) {
     aviso(msg); return false;
   }
 }
-function aviso(t) { const a = $('aviso'); a.textContent = t; a.hidden = !t; }
+// fijo: queda en la página (avisos de arranque). Si no, cartel flotante arriba de todo que se va solo.
+let avisoTimer = 0;
+function aviso(t, fijo) {
+  if (fijo) { const a = $('aviso'); a.textContent = t; a.hidden = !t; return; }
+  let c = $('toast'); if (!c) { c = document.createElement('div'); c.id = 'toast'; c.setAttribute('role', 'status'); document.body.appendChild(c); }
+  c.textContent = t; c.hidden = !t; clearTimeout(avisoTimer);
+  if (t) avisoTimer = setTimeout(() => { c.hidden = true; }, Math.min(8000, 2500 + t.length * 45));
+}
 function renderAll() { renderHeader(); renderMision(); renderExtras(); renderItin(); renderValija(); renderBingo(); renderGastos(); renderAjustes(); tick(); }
 function bloquear(on) { document.querySelectorAll('form input, form select, form button, [data-b], .item input').forEach((x) => (x.disabled = on)); }
 
@@ -760,7 +770,7 @@ function iniciarAvisos(sb, viaje) {
   const viaje = codigoViaje();
   if (!viaje || !window.supabase) {
     $('status').textContent = '';
-    aviso(viaje ? 'No se pudo conectar. Revisá internet y recargá.' : 'La cuenta regresiva funciona, pero para ver la lista compartida abrí el link completo que te pasaron por WhatsApp.');
+    aviso(viaje ? 'No se pudo conectar. Revisá internet y recargá.' : 'La cuenta regresiva funciona, pero para ver la lista compartida abrí el link completo que te pasaron por WhatsApp.', true);
     bloquear(true); return;
   }
   if (location.hash && location.hash !== '#chat') history.replaceState(null, '', location.pathname + location.search);

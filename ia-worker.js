@@ -1,7 +1,8 @@
 // Borrado con IA (MI-GAN, Picsart AI Research, MIT) sobre onnxruntime-web, en segundo plano para no trabar la pantalla.
 // Mensajes: entra { img: Uint8Array CHW, mask: Uint8Array (0 = borrar, 255 = dejar), W, H } → sale { tipo: 'progreso'|'listo'|'error' }.
-const ORT = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/';
-importScripts(ORT + 'ort.min.js');
+// onnxruntime-web 1.31.1 (MIT, Microsoft) servido desde el propio sitio: el service worker lo guarda para usarlo sin señal
+const ORT = new URL('vendor/ort/', self.location.href).href;
+importScripts(ORT + 'ort.wasm.min.js');
 ort.env.wasm.wasmPaths = ORT;
 const MODELO = new URL('modelos/migan_pipeline_v2.onnx', self.location.href).href, CACHE = 'rumbo-ia-v1';
 let sesion = null;
