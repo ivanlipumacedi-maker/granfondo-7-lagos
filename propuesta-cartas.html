@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preguntas de ruta: maqueta de las cartas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Overpass:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #edf1f0; --ink: #1f2a2e; --muted: #5e6b6f; --a: #0f5e6e; --b: #b7862a; }
+  * { box-sizing: border-box }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: Overpass, system-ui, sans-serif; }
+  .hoja { max-width: 440px; margin: 0 auto; padding: 18px 18px 40px }
+  h1 { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 28px; letter-spacing: -.02em; margin: 4px 0 2px }
+  .bajada { margin: 0 0 16px; color: var(--muted); font-size: 15px }
+
+  /* mazos */
+  .mazos { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -18px 18px; padding: 2px 18px }
+  .mazo { flex: none; border: 0; font: inherit; font-weight: 800; font-size: 14px; padding: 10px 14px; border-radius: 14px; background: #fff; color: var(--ink); box-shadow: 0 1px 0 #cbd5d3; display: flex; gap: 8px; align-items: center }
+  .mazo[aria-pressed="true"] { background: var(--ink); color: #fff }
+  .mazo .n { font-weight: 600; opacity: .7 }
+  .mazo.cerrado { opacity: .55 }
+
+  /* la carta */
+  .pila { position: relative; height: 470px; margin-top: 6px }
+  .carta, .atras { position: absolute; inset: 0; border-radius: 28px }
+  .atras { transform: translate(8px, 10px) rotate(2.5deg); background: var(--fondo2); opacity: .55 }
+  .atras.dos { transform: translate(-6px, 16px) rotate(-3deg); opacity: .35 }
+  .carta { background: var(--fondo); color: var(--tinta); padding: 22px 22px 20px; display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 18px 40px -22px rgba(31,42,46,.55); transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .35s }
+  .carta.sale { transform: translateX(-120%) rotate(-10deg); opacity: 0 }
+  .carta.entra { transform: translateX(60%) rotate(6deg); opacity: 0; transition: none }
+  .turno { display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 14px }
+  .turno .p { padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.75); color: #1f2a2e }
+  .turno .p.A { box-shadow: inset 0 0 0 2px var(--a) } .turno .p.B { box-shadow: inset 0 0 0 2px var(--b) }
+  .turno .f { opacity: .75; font-weight: 600 }
+  .dibujo { margin: 26px 0 8px; width: 132px; height: 132px; border-radius: 42% 58% 55% 45% / 50% 44% 56% 50%; background: var(--blob);
+    display: grid; place-items: center; font-size: 72px; transform: rotate(-6deg); box-shadow: inset 0 -6px 0 rgba(0,0,0,.06) }
+  .dibujo span { transform: rotate(6deg) }
+  .pregunta { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 29px; line-height: 1.12; letter-spacing: -.015em; margin: 12px 0 0; text-wrap: balance }
+  .pie { margin-top: auto; display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-weight: 600; opacity: .8 }
+
+  .botones { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 34px }
+  .botones button { font: inherit; font-weight: 800; font-size: 16px; border-radius: 16px; padding: 15px; border: 0 }
+  .paso { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 2px #cbd5d3 }
+  .sig { background: var(--ink); color: #fff }
+
+  .picante-switch { margin-top: 22px; background: #fff; border-radius: 16px; padding: 14px 16px; display: flex; gap: 12px; align-items: center; font-size: 14px; color: var(--muted) }
+  .picante-switch b { color: var(--ink); display: block; font-size: 15px }
+  .tog { margin-left: auto; width: 46px; height: 28px; border-radius: 99px; background: #cbd5d3; position: relative; flex: none }
+  .tog::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: left .2s }
+  .tog.on { background: #c2364a } .tog.on::after { left: 21px }
+  .nota { margin-top: 18px; font-size: 13px; color: var(--muted); line-height: 1.5 }
+  @media (prefers-reduced-motion: reduce) { .carta { transition: none } }
+</style>
+</head>
+<body>
+<main class="hoja">
+  <h1>Preguntas de ruta</h1>
+  <p class="bajada">Una carta a la vez, en voz alta. Siempre se puede decir “paso”.</p>
+
+  <div class="mazos" role="tablist">
+    <button class="mazo" data-m="0" aria-pressed="true">🫶 Para conocernos <span class="n">12/36</span></button>
+    <button class="mazo" data-m="1" aria-pressed="false">🌶️ Picantes <span class="n">3/40</span></button>
+    <button class="mazo" data-m="2" aria-pressed="false">✍️ Nuestras <span class="n">2</span></button>
+  </div>
+
+  <div class="pila">
+    <div class="atras dos"></div><div class="atras"></div>
+    <article class="carta" id="carta"></article>
+  </div>
+  <div class="botones"><button class="paso" id="paso">Paso</button><button class="sig" id="sig">Siguiente carta</button></div>
+
+  <div class="picante-switch"><span><b>Mostrar picantes</b>Aparecen solo si los dos lo prendieron. Guti: prendido.</span><span class="tog on" id="tog"></span></div>
+  <p class="nota">Maqueta: así se verían las cartas. En la app real, la carta cambia en los dos celus a la vez y las respuestas no se guardan nunca.</p>
+</main>
+
+<script>
+  // cada mazo/nivel con su paleta; cada carta con su dibujito
+  const P = {
+    n1: { fondo: '#d3ecea', fondo2: '#9fd2cd', tinta: '#123b42', blob: '#ffffff' },
+    n2: { fondo: '#f6e3b8', fondo2: '#e7c375', tinta: '#4a3510', blob: '#fff7e3' },
+    n3: { fondo: '#e4d6f5', fondo2: '#bfa3e6', tinta: '#3a2263', blob: '#f7f0ff' },
+    pic: { fondo: '#c2364a', fondo2: '#8e1f32', tinta: '#fff4f1', blob: '#ffd7cf' },
+    nue: { fondo: '#1f2a2e', fondo2: '#40525a', tinta: '#edf1f0', blob: '#2f3f45' },
+  };
+  const MAZOS = [
+    [
+      { p: 'n1', nivel: 'Nivel 1 de 3', e: '🍽️', q: 'Si pudieras cenar con cualquier persona del mundo, viva o no, ¿con quién sería?', quien: ['A', 'B'] },
+      { p: 'n1', nivel: 'Nivel 1 de 3', e: '☀️', q: '¿Cómo sería tu día perfecto, de que te levantás hasta que te acostás?', quien: ['B', 'A'] },
+      { p: 'n2', nivel: 'Nivel 2 de 3', e: '🤝', q: '¿Qué es lo que más valorás de una amistad?', quien: ['A', 'B'] },
+      { p: 'n2', nivel: 'Nivel 2 de 3', e: '📸', q: '¿Cuál es tu recuerdo más lindo de todos?', quien: ['B', 'A'] },
+      { p: 'n3', nivel: 'Nivel 3 de 3', e: '🪞', q: 'Decí tres cosas que creés que tenemos en común.', quien: ['A', 'B'] },
+      { p: 'n3', nivel: 'Nivel 3 de 3', e: '💧', q: '¿Cuándo fue la última vez que lloraste delante de alguien?', quien: ['B', 'A'] },
+    ],
+    [
+      { p: 'pic', nivel: 'Picante', e: '👀', q: '¿Qué fue lo primero que te llamó la atención de mí?', quien: ['A', 'B'] },
+      { p: 'pic', nivel: 'Picante', e: '🌙', q: '¿Cuál sería tu cita perfecta, de principio a fin?', quien: ['B', 'A'] },
+      { p: 'pic', nivel: 'Picante', e: '💋', q: '¿Un lugar raro donde te animarías a darme un beso?', quien: ['A', 'B'] },
+    ],
+    [
+      { p: 'nue', nivel: 'La cargó Guti', e: '🧉', q: '¿Quién ceba mejor el mate y por qué soy yo?', quien: ['A', 'B'] },
+      { p: 'nue', nivel: 'La cargó Lipu', e: '🎶', q: '¿Qué canción te hace acordar a este viaje?', quien: ['B', 'A'] },
+    ],
+  ];
+  const NOM = { A: 'Lipu', B: 'Guti' };
+  let m = 0, i = 0;
+  const carta = document.getElementById('carta');
+  function pintar() {
+    const c = MAZOS[m][i], pal = P[c.p], pila = document.querySelector('.pila');
+    for (const [k, v] of Object.entries(pal)) pila.style.setProperty('--' + k, v);
+    carta.innerHTML = `<div class="turno"><span class="p ${c.quien[0]}">${NOM[c.quien[0]]}</span><span class="f">le pregunta a</span><span class="p ${c.quien[1]}">${NOM[c.quien[1]]}</span></div>
+      <div class="dibujo"><span>${c.e}</span></div>
+      <p class="pregunta">${c.q}</p>
+      <div class="pie"><span>${c.nivel}</span><span>carta ${i + 1} de ${MAZOS[m].length}</span></div>`;
+  }
+  function pasar() {
+    carta.classList.add('sale');
+    setTimeout(() => { i = (i + 1) % MAZOS[m].length; pintar(); carta.classList.remove('sale'); carta.classList.add('entra'); requestAnimationFrame(() => requestAnimationFrame(() => carta.classList.remove('entra'))); }, 300);
+  }
+  document.getElementById('sig').onclick = pasar;
+  document.getElementById('paso').onclick = pasar;
+  document.querySelectorAll('.mazo').forEach((b) => b.onclick = () => { m = +b.dataset.m; i = 0; document.querySelectorAll('.mazo').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); pintar(); });
+  document.getElementById('tog').onclick = (e) => e.currentTarget.classList.toggle('on');
+  pintar();
+</script>
+</body>
+</html>
