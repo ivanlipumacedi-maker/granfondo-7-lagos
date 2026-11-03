@@ -26,7 +26,7 @@
 #albumVisor button, #albumVisor a { font: inherit; color: #fff; background: rgba(255,255,255,.12); border: 0; border-radius: 999px; padding: 10px 14px; font-weight: 700; font-size: .9rem; text-decoration: none; white-space: nowrap }
 #albumVisor .pie { display: flex; gap: 6px; justify-content: space-between; padding: 10px 10px calc(12px + env(safe-area-inset-bottom, 0px)); flex-wrap: wrap }
 /* confirmación de borrado: tarjeta abajo, sobre la foto */
-#albumConfirmar { position: absolute; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); background: #1e2a2e; border-radius: 18px; padding: 16px; box-shadow: 0 10px 40px rgba(0,0,0,.6) }
+#albumConfirmar { position: absolute; left: 16px; right: 16px; top: 50%; transform: translateY(-50%); background: #1e2a2e; border-radius: 18px; padding: 16px; box-shadow: 0 10px 40px rgba(0,0,0,.6) }
 #albumConfirmar[hidden] { display: none }
 #albumConfirmar p { margin: 0 0 14px; line-height: 1.4; font-size: .95rem; color: rgba(255,255,255,.8) }
 #albumConfirmar p b { display: block; font-size: 1.1rem; color: #fff; margin-bottom: 4px }
@@ -56,8 +56,8 @@
     <button type="button" id="albumEditar">Editar</button>
     <button type="button" id="albumBorrar">Borrar</button>
   </div>
-  <div id="albumConfirmar" hidden role="alertdialog" aria-labelledby="albumConfirmarT">
-    <p id="albumConfirmarT"><b>¿Borrar esta foto?</b>Se borra del álbum para los dos. La copia en Google Drive queda guardada.</p>
+  <div id="albumConfirmar" hidden role="alertdialog" aria-modal="true" aria-labelledby="albumConfirmarT" aria-describedby="albumConfirmarD">
+    <p><b id="albumConfirmarT">¿Borrar esta foto?</b><span id="albumConfirmarD"></span></p>
     <div class="fila"><button type="button" id="albumBorrarNo">Cancelar</button><button type="button" id="albumBorrarSi">Borrar foto</button></div>
   </div>
 </div>`);
@@ -170,7 +170,7 @@
       visor.querySelector('.cab b').innerHTML = ''; const b = visor.querySelector('.cab b');
       b.append(document.createTextNode(nom(f.autor))); const sm = document.createElement('small'); sm.textContent = fmtHora.format(new Date(f.tomada)); b.appendChild(sm);
       const mini = M.firmada(f.mini); img.src = mini || '';
-      $('albumBorrar').hidden = f.autor !== yo(); $('albumConfirmar').hidden = true;
+      $('albumBorrar').hidden = f.autor !== yo(); ocultarConf();
       $('albumAlChat').hidden = !window.chatEnviarFoto;
       const opciones = [A.verFoto(f), f.media, f.mini].filter((x, i, xs) => x && xs.indexOf(x) === i);
       (async () => {
@@ -189,10 +189,13 @@
       visor.hidden = false; history.pushState({ ...(history.state || {}), albumFoto: 1 }, '', location.hash || location.pathname + location.search);
       mostrar(f);
     }
-    function cerrarVisor() { visor.hidden = true; actual = null; img.removeAttribute('src'); $('albumConfirmar').hidden = true; }
-    function salirDeFotoBorrada() { if (visor.hidden) return; if (window.EditorFoto?.abierto()) return; /* al volver del editor se cierra */ if (history.state?.albumFoto) history.back(); else cerrarVisor(); }
-    $('albumVisorCerrar').addEventListener('click', () => { if (history.state?.albumFoto) history.back(); else cerrarVisor(); });
+    function cerrarVisor() { visor.hidden = true; actual = null; img.removeAttribute('src'); ocultarConf(); }
+    // salir del visor sacando también la entrada de atrás de la confirmación, si estaba abierta
+    function salirVisor() { const n = (history.state?.albumConf ? 1 : 0) + (history.state?.albumFoto ? 1 : 0); if (n) history.go(-n); else cerrarVisor(); }
+    function salirDeFotoBorrada() { if (visor.hidden) return; if (window.EditorFoto?.abierto()) return; /* al volver del editor se cierra */ salirVisor(); }
+    $('albumVisorCerrar').addEventListener('click', salirVisor);
     addEventListener('popstate', () => {
+      if (!$('albumConfirmar').hidden && !history.state?.albumConf) ocultarConf();
       if (!visor.hidden && !history.state?.albumFoto) cerrarVisor();
       else if (!visor.hidden && actual && !history.state?.editor && !fotos.some((x) => x.id === actual.id)) setTimeout(salirDeFotoBorrada, 0);
       seguirAlAlbum();
@@ -264,11 +267,32 @@
       finally { abriendoEditor = false; }
     });
     // Borrar abre una confirmación; recién "Borrar foto" borra (un doble toque sin querer no alcanza)
-    $('albumBorrar').addEventListener('click', () => { if (!actual || actual.autor !== yo()) return; $('albumConfirmar').hidden = false; $('albumBorrarNo').focus(); });
-    $('albumBorrarNo').addEventListener('click', () => { $('albumConfirmar').hidden = true; });
+    // La tarjeta va en el centro y "Borrar foto" no responde en el primer medio segundo: un doble toque no alcanza.
+    let confAbierta = 0;
+    const capas = () => [visor.querySelector('.cab'), visor.querySelector('.marco'), visor.querySelector('.pie')];
+    function ocultarConf() {
+      const c = $('albumConfirmar'); if (c.hidden) return;
+      c.hidden = true; capas().forEach((x) => (x.inert = false));
+      if (!visor.hidden && !$('albumBorrar').hidden) $('albumBorrar').focus();
+    }
+    async function abrirConf() {
+      if (!actual || actual.autor !== yo() || !$('albumConfirmar').hidden) return;
+      const f = actual, d = $('albumConfirmarD');
+      d.textContent = 'Se borra del álbum para los dos.';
+      $('albumConfirmar').hidden = false; confAbierta = Date.now(); capas().forEach((x) => (x.inert = true));
+      history.pushState({ ...(history.state || {}), albumConf: 1 }, '', location.hash || location.pathname + location.search);
+      $('albumBorrarNo').focus();
+      // ¿ya está la copia en Drive? (la sube el servidor un rato después: se pregunta en el momento)
+      let drive = null;
+      try { const r = await sb.from('fotos').select('drive_id').eq('id', f.id).maybeSingle(); if (!r.error) drive = !!r.data?.drive_id; } catch {}
+      if (actual?.id !== f.id || $('albumConfirmar').hidden) return;
+      d.textContent = 'Se borra del álbum para los dos. ' + (drive === true ? 'La copia en Google Drive queda guardada.' : drive === false ? 'Todavía no se copió a Google Drive: se pierde para siempre.' : 'Si todavía no se copió a Google Drive, se pierde.');
+    }
+    $('albumBorrar').addEventListener('click', abrirConf);
+    $('albumBorrarNo').addEventListener('click', () => { if (history.state?.albumConf) history.back(); else ocultarConf(); });
     $('albumBorrarSi').addEventListener('click', async () => {
-      if (!actual || actual.autor !== yo() || borrando) return;
-      const f = actual; borrando = true; $('albumConfirmar').hidden = true;
+      if (!actual || actual.autor !== yo() || borrando || Date.now() - confAbierta < 500) return;
+      const f = actual; borrando = true;
       try {
         const r = await sb.from('fotos').delete().eq('id', f.id).select('id');
         if (r.error || !r.data?.length) { console.error(r.error); return window.aviso?.('No se pudo borrar. Probá de nuevo.'); }
@@ -278,7 +302,7 @@
       } finally { borrando = false; }
       fotos = A.quitar(fotos, f.id); pintar(); refrescarUso().then(() => cola.procesar());
       canal.send({ type: 'broadcast', event: 'album', payload: { borrado: f.id } });
-      if (history.state?.albumFoto) history.back(); else cerrarVisor();
+      salirVisor();
     });
 
     pintar(); cargar();

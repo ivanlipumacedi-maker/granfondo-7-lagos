@@ -89,7 +89,7 @@
 </div>`);
     const raiz = document.getElementById('camara'), video = raiz.querySelector('video');
     const q = (c) => raiz.querySelector(`[data-c="${c}"]`);
-    let stream = null, track = null, caps = {}, camaras = [], hayFrontal = true, idxCam = 0, gran = null, enGran = false, zoomLuego = null, frontal = false, zoom = 1, ultima = null, alChat = false, ocupado = false, turno = 0, nPend = 0;
+    let stream = null, track = null, caps = {}, camaras = [], hayFrontal = true, idxCam = 0, gran = null, enGran = false, frontal = false, zoom = 1, ultima = null, alChat = false, ocupado = false, turno = 0, nPend = 0;
     let segs = 0; const TIMERS = [0, 3, 10];
     try { if (localStorage.getItem('camGrilla') === '1') { raiz.querySelector('.grilla').hidden = false; q('grilla').setAttribute('aria-pressed', 'true'); } } catch {}
 
@@ -105,17 +105,29 @@
       catch (e) {
         if (mio !== turno) return;
         console.error(e);
+        // si la gran angular no abre, se vuelve a la principal en vez de quedar en negro
+        if (enGran) { enGran = false; window.aviso?.('La gran angular no está disponible ahora.'); return encender(); }
         return error(e?.name === 'NotAllowedError' ? 'Chrome no tiene permiso para usar la cámara. Tocá el candado de la barra de direcciones, habilitá la cámara y volvé a abrirla.' : 'No se pudo abrir la cámara. Cerrala y probá de nuevo.');
       }
       // mientras pedía la cámara: se cerró, se pasó a segundo plano o se pidió otra lente → esta no sirve
       if (mio !== turno || raiz.hidden || document.hidden) { nuevo.getTracks().forEach((t) => t.stop()); return; }
       stream = nuevo;
+      video.addEventListener('loadedmetadata', ajustarGrilla, { once: true });
       track = stream.getVideoTracks()[0]; video.srcObject = stream; video.classList.toggle('espejo', frontal);
       if (!camaras.length && !frontal) await listarCamaras();
       if (mio !== turno) return;
       caps = track.getCapabilities?.() || {};
       montarControles();
     }
+
+    // la cuadrícula va sobre la foto, no sobre las bandas negras de los costados
+    function ajustarGrilla() {
+      const g = raiz.querySelector('.grilla'), r = video.getBoundingClientRect(), vw = video.videoWidth, vh = video.videoHeight;
+      if (!vw || !vh || !r.width) return;
+      const k = Math.min(r.width / vw, r.height / vh), w = vw * k, h = vh * k;
+      Object.assign(g.style, { inset: 'auto', left: r.left + (r.width - w) / 2 + 'px', top: r.top + (r.height - h) / 2 + 'px', width: w + 'px', height: h + 'px' });
+    }
+    addEventListener('resize', () => { if (!raiz.hidden) ajustarGrilla(); });
 
     async function listarCamaras() {
       try {
@@ -145,7 +157,6 @@
         Object.assign(zr, { min: z.min, max: z.max, step: z.step || 0.1, value: zoom }); zr.hidden = false;
       } else zr.hidden = true;
       marcarZoom();
-      if (zoomLuego != null) { const v = zoomLuego; zoomLuego = null; if (v !== 1) ponerZoom(v); }
       q('luz').hidden = !caps.torch; q('luz').setAttribute('aria-pressed', 'false');
       const ex = caps.exposureCompensation, er = q('expRango');
       q('exp').hidden = !(ex && ex.max > ex.min); q('exp').setAttribute('aria-pressed', 'false'); er.hidden = true;

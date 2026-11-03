@@ -7,7 +7,7 @@
 <meta property="og:title" content="Rumbo al Sur">
 <meta property="og:description" content="Lipu y Guti · jueves 19 de noviembre">
 <title>Rumbo al Sur</title>
-<meta name="version" content="38cc612049">
+<meta name="version" content="f91c6a9936">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800;900&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap">
@@ -331,18 +331,18 @@ body { margin: 0 }
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="chat-logica.js?v=38cc612049"></script>
-<script src="chat-medios.js?v=38cc612049"></script>
-<script src="chat.js?v=38cc612049"></script>
-<script src="album-logica.js?v=38cc612049"></script>
-<script src="album-cola.js?v=38cc612049"></script>
-<script src="camara.js?v=38cc612049"></script>
-<script src="editor.js?v=38cc612049"></script>
-<script src="album.js?v=38cc612049"></script>
-<script src="ruta-logica.js?v=38cc612049"></script>
-<script src="preguntas-cartas.js?v=38cc612049"></script>
-<script src="preguntas-logica.js?v=38cc612049"></script>
-<script src="preguntas.js?v=38cc612049"></script>
+<script src="chat-logica.js?v=f91c6a9936"></script>
+<script src="chat-medios.js?v=f91c6a9936"></script>
+<script src="chat.js?v=f91c6a9936"></script>
+<script src="album-logica.js?v=f91c6a9936"></script>
+<script src="album-cola.js?v=f91c6a9936"></script>
+<script src="camara.js?v=f91c6a9936"></script>
+<script src="editor.js?v=f91c6a9936"></script>
+<script src="album.js?v=f91c6a9936"></script>
+<script src="ruta-logica.js?v=f91c6a9936"></script>
+<script src="preguntas-cartas.js?v=f91c6a9936"></script>
+<script src="preguntas-logica.js?v=f91c6a9936"></script>
+<script src="preguntas.js?v=f91c6a9936"></script>
 <script>
 const START = new Date('2026-10-29T00:00:00-03:00');
 const TRIP_DATE = '2026-11-19';
@@ -461,7 +461,7 @@ function renderHeader() {
   window.alCambiarSoyChat?.();
   $('gPago').innerHTML = ['A', 'B'].map((k) => `<option value="${k}" ${k === yo ? 'selected' : ''}>Pagó ${esc(n[k])}</option>`).join('');
 }
-$('soy').addEventListener('click', (e) => { const b = e.target.closest('[data-soy]'); if (!b) return; yo = b.dataset.soy; ls.set('soy', yo); renderAll(); window.alCambiarSoy?.(); window.alCambiarSoyChat?.(); });
+$('soy').addEventListener('click', (e) => { const b = e.target.closest('[data-soy]'); if (!b) return; yo = b.dataset.soy; ls.set('soy', yo); renderAll(); window.alCambiarSoy?.(); window.alCambiarSoyChat?.(); window.alCambiarSoyPreguntas?.(); });
 
 /* ---------- Pestañas ---------- */
 function showTab(t) {

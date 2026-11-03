@@ -43,6 +43,11 @@
 #preguntas .nuevas ul { list-style: none; margin: 0; padding: 0 }
 #preguntas .nuevas li { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: .92rem }
 #preguntas .nuevas li span:first-child { flex: none } #preguntas .nuevas li .t { flex: 1; min-width: 0; overflow-wrap: anywhere }
+#preguntas .nuevas li button { padding: 8px 12px; min-height: 40px }
+#preguntas .nuevas li .x { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line) }
+#preguntas .nuevas li [data-si-pq] { background: #c0392b }
+#preguntas .nuevas li [data-no-pq] { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line) }
+#pqSig:disabled, #pqPaso:disabled { opacity: .5 }
 @media (prefers-reduced-motion: reduce) { #pqCarta { transition: none } }`;
 
   // paletas: cada mazo/nivel con su color
@@ -59,7 +64,7 @@
     const raiz = $('preguntas'); if (!raiz || !db) return;
     const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
     raiz.innerHTML = `
-      <div class="mazos" role="tablist">
+      <div class="mazos" role="group" aria-label="Mazo">
         <button type="button" class="mazo" data-mazo="conocer">🫶 Para conocernos <span class="n"></span></button>
         <button type="button" class="mazo" data-mazo="picantes">🌶️ Picantes <span class="n"></span></button>
         <button type="button" class="mazo" data-mazo="nuestras">✍️ Nuestras <span class="n"></span></button>
@@ -73,7 +78,7 @@
       </div>
       <label class="tog"><span><b>Mostrar picantes</b><span id="pqPicTxt"></span></span><input type="checkbox" id="pqPicantes"></label>`;
 
-    let est = {}, existe = false, nuestras = [], quierePicantes = false, ultimaClave = '';
+    let est = {}, listo = false, nuestras = [], quierePicantes = false, ultimaClave = '', ultimoAvance = 0;
     const nom = (k) => nombres()[k] || (k === 'A' ? 'Lipu' : 'Guti');
     const campoPic = () => (yo() === 'A' ? 'picA' : 'picB');
     const elegido = () => est.mazo || 'conocer';
@@ -86,15 +91,17 @@
       return C.CONOCER;
     }
 
+    // Hasta que llega el estado guardado no se escribe nada (si no, un toque con señal lenta pisaría el progreso).
+    // Siempre se mezcla en el servidor; solo si el juego todavía no existe se crea entero.
     async function guardar(parche) {
-      est = { ...est, ...parche }; pintar();
+      if (!listo) return;
+      const previo = est; est = { ...est, ...parche }; pintar();
       const ref = db.doc('juego/preguntas');
-      try {
-        if (!existe) { await ref.set({ mazo: 'conocer', conocer: 0, picantes: 0, nuestras: 0, seed: Math.floor(Math.random() * 1e9), ...est }); existe = true; return; }
-        await ref.merge(parche);
-      } catch (e) {
-        if (e.code === 'borrada') { existe = false; return guardar(parche); }
-        console.error(e); window.aviso?.('No se pudo cambiar la carta. Revisá la señal.');
+      try { await ref.merge(parche); }
+      catch (e) {
+        if (e.code !== 'borrada') { console.error(e); return window.aviso?.('No se pudo cambiar la carta. Revisá la señal.'); }
+        try { await ref.set({ mazo: 'conocer', conocer: 0, picantes: 0, nuestras: 0, seed: Math.floor(Math.random() * 1e9), ...previo, ...parche }); }
+        catch (e2) { console.error(e2); window.aviso?.('No se pudo cambiar la carta. Revisá la señal.'); }
       }
     }
 
@@ -113,13 +120,16 @@
       const otro = yo() === 'A' ? 'B' : 'A', otroOn = !!est[otro === 'A' ? 'picA' : 'picB'];
       $('pqPicTxt').textContent = Q.picantesOk(est) ? 'Prendidas por los dos.' : `Aparecen solo si los dos las prenden. ${nom(otro)}: ${otroOn ? 'prendido' : 'apagado'}.`;
       $('pqNuevas').hidden = m !== 'nuestras';
+      $('pqSig').disabled = $('pqPaso').disabled = !listo;
       // carta
       const pal = m === 'conocer' ? PAL['n' + Q.nivel(Math.min(i, 35))] : PAL[m];
       const pila = raiz.querySelector('.pila');
       for (const [k, v] of Object.entries(pal)) pila.style.setProperty('--' + k, v);
       const el = $('pqCarta');
-      const clave = m + ':' + i + ':' + (carta?.q || '');
-      const animar = ultimaClave && clave !== ultimaClave; ultimaClave = clave;
+      // solo se rehace la carta si cambió (si no, el lector de pantalla la volvería a anunciar)
+      const clave = [m, i, carta?.q || '', lista.length, nom('A'), nom('B')].join('|');
+      const igual = clave === ultimaClave, animar = ultimaClave && !igual; ultimaClave = clave;
+      if (igual && el.childElementCount) return;
       const llenar = () => {
         el.replaceChildren(); el.dataset.mazo = m; // el mazo cambia junto con el contenido (no al empezar la animación)
         const t = document.createElement('div'); t.className = 'turno';
@@ -148,7 +158,8 @@
       setTimeout(() => { llenar(); el.classList.remove('sale'); el.classList.add('entra'); requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('entra'))); }, 280);
     }
 
-    const avanzar = () => { const m = mazoVisible(); guardar({ [m]: Q.siguiente(est[m] || 0, cartas(m).length), mazo: m }); };
+    // un doble toque sin querer no se saltea una carta
+    const avanzar = () => { if (!listo || Date.now() - ultimoAvance < 700) return; ultimoAvance = Date.now(); const m = mazoVisible(); guardar({ [m]: Q.siguiente(est[m] || 0, cartas(m).length), mazo: m }); };
     $('pqSig').addEventListener('click', avanzar);
     $('pqPaso').addEventListener('click', avanzar);
     raiz.querySelector('.mazos').addEventListener('click', (e) => {
@@ -169,12 +180,19 @@
       try { await db.collection('preguntas').add({ texto: t.slice(0, 140), autor: yo(), e: Q.emojiPara(t), creado: Date.now() }); }
       catch (err) { console.error(err); return window.aviso?.('No se pudo sumar la pregunta. Revisá la señal.'); }
       $('pqNueva').value = '';
-      guardar({ mazo: 'nuestras', nuestras: n }); // se ve enseguida la que acabás de sumar
+      // si el mazo estaba vacío o terminado se muestra la nueva; si estaban charlando una, no se les cambia
+      if ((est.nuestras || 0) >= n) guardar({ mazo: 'nuestras', nuestras: n });
     });
     $('pqLista').addEventListener('click', (e) => {
-      const b = e.target.closest('[data-borrar-pq]'); if (!b) return;
-      if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = '¿Borrar?'; setTimeout(() => { b.classList.remove('armed'); b.textContent = '✕'; }, 3000); return; }
-      db.doc('preguntas/' + b.dataset.borrarPq).delete().catch(() => window.aviso?.('No se pudo borrar. Probá de nuevo.'));
+      const li = e.target.closest('li'); if (!li) return;
+      const x = e.target.closest('[data-borrar-pq]'), si = e.target.closest('[data-si-pq]'), no = e.target.closest('[data-no-pq]');
+      if (x) { // pide confirmar en la misma fila
+        const bs = document.createElement('button'); bs.type = 'button'; bs.dataset.siPq = x.dataset.borrarPq; bs.textContent = 'Sí, borrar';
+        const bn = document.createElement('button'); bn.type = 'button'; bn.dataset.noPq = '1'; bn.textContent = 'No';
+        x.replaceWith(bs, bn); bn.focus(); return;
+      }
+      if (no) return pintarLista();
+      if (si) db.doc('preguntas/' + si.dataset.siPq).delete().catch(() => window.aviso?.('No se pudo borrar. Probá de nuevo.'));
     });
     function pintarLista() {
       $('pqLista').replaceChildren(...nuestras.map((x) => {
@@ -186,7 +204,7 @@
     }
 
     db.doc('juego/preguntas').onSnapshot((d) => {
-      existe = d.exists; est = (d.exists && d.data()) || {};
+      listo = true; est = (d.exists && d.data()) || {};
       if (quierePicantes && Q.picantesOk(est)) { quierePicantes = false; if (elegido() !== 'picantes') guardar({ mazo: 'picantes' }); }
       if (elegido() === 'picantes' && Q.picantesOk(est)) quierePicantes = false;
       pintar();
