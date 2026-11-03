@@ -55,7 +55,8 @@ async function marcarEntregado(creado, quien) {
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
-  const destino = self.registration.scope + (e.notification.tag === 'chat' ? '#chat' : '');
+  // ?n=… evita que el navegador muestre una copia vieja guardada; el código del viaje la app lo recuerda
+  const destino = self.registration.scope + '?n=' + Date.now() + (e.notification.tag === 'chat' ? '#chat' : '');
   e.waitUntil((async () => {
     const ventanas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const abierta = ventanas.find((v) => v.url.startsWith(self.registration.scope));

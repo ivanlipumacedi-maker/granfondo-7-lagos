@@ -7,6 +7,7 @@
 <meta property="og:title" content="Rumbo al Sur">
 <meta property="og:description" content="Lipu y Guti · jueves 19 de noviembre">
 <title>Rumbo al Sur</title>
+<meta name="version" content="516c4c628e">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800;900&display=swap">
 <style>
@@ -322,15 +323,15 @@ body { margin: 0 }
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="chat-logica.js"></script>
-<script src="chat-medios.js"></script>
-<script src="chat.js"></script>
-<script src="album-logica.js"></script>
-<script src="album-cola.js"></script>
-<script src="camara.js"></script>
-<script src="editor.js"></script>
-<script src="album.js"></script>
-<script src="ruta-logica.js"></script>
+<script src="chat-logica.js?v=516c4c628e"></script>
+<script src="chat-medios.js?v=516c4c628e"></script>
+<script src="chat.js?v=516c4c628e"></script>
+<script src="album-logica.js?v=516c4c628e"></script>
+<script src="album-cola.js?v=516c4c628e"></script>
+<script src="camara.js?v=516c4c628e"></script>
+<script src="editor.js?v=516c4c628e"></script>
+<script src="album.js?v=516c4c628e"></script>
+<script src="ruta-logica.js?v=516c4c628e"></script>
 <script>
 const START = new Date('2026-10-29T00:00:00-03:00');
 const TRIP_DATE = '2026-11-19';
@@ -678,6 +679,31 @@ function renderAll() { renderHeader(); renderMision(); renderExtras(); renderIti
 function bloquear(on) { document.querySelectorAll('form input, form select, form button, [data-b], .item input').forEach((x) => (x.disabled = on)); }
 
 renderAll(); setInterval(tick, 1000);
+
+/* ---------- Versión nueva publicada: al volver a la app se recarga sola (si no estás en medio de algo) ---------- */
+const VERSION_ACTUAL = document.querySelector('meta[name="version"]')?.content || '';
+let revisandoVersion = false;
+function enMedioDeAlgo() {
+  if (document.getElementById('chatTexto')?.value.trim()) return true;
+  if (['camara', 'editorFoto', 'albumVisor', 'recorte', 'stickerEditor'].some((id) => { const e = document.getElementById(id); return e && !e.hidden; })) return true;
+  const a = document.activeElement;
+  return !!a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && !!a.value;
+}
+async function revisarVersion() {
+  if (!VERSION_ACTUAL || revisandoVersion || document.hidden) return;
+  revisandoVersion = true;
+  try {
+    const r = await fetch(location.pathname + '?version=' + Date.now(), { cache: 'no-store' });
+    const m = (await r.text()).match(/<meta name="version" content="([^"]+)">/);
+    if (!m || m[1] === VERSION_ACTUAL || enMedioDeAlgo()) return; // si estás en algo, se revisa la próxima vez
+    try { if (sessionStorage.getItem('recargaVersion') === m[1]) return; sessionStorage.setItem('recargaVersion', m[1]); } catch {}
+    location.reload();
+  } catch (e) { /* sin señal: se revisa la próxima vez */ }
+  finally { revisandoVersion = false; }
+}
+document.addEventListener('visibilitychange', revisarVersion);
+addEventListener('online', revisarVersion);
+setTimeout(revisarVersion, 4000);
 
 /* ---------- Datos compartidos en Supabase ---------- */
 const SUPABASE_URL = 'https://olsurumbzcgoyvyngvqi.supabase.co';
