@@ -25,7 +25,14 @@
 #albumVisor .cab small { display: block; opacity: .7; font-weight: 400 }
 #albumVisor button, #albumVisor a { font: inherit; color: #fff; background: rgba(255,255,255,.12); border: 0; border-radius: 999px; padding: 10px 14px; font-weight: 700; font-size: .9rem; text-decoration: none; white-space: nowrap }
 #albumVisor .pie { display: flex; gap: 6px; justify-content: space-between; padding: 10px 10px calc(12px + env(safe-area-inset-bottom, 0px)); flex-wrap: wrap }
-#albumVisor #albumBorrar.armed { background: #c0392b }`;
+/* confirmación de borrado: tarjeta abajo, sobre la foto */
+#albumConfirmar { position: absolute; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); background: #1e2a2e; border-radius: 18px; padding: 16px; box-shadow: 0 10px 40px rgba(0,0,0,.6) }
+#albumConfirmar[hidden] { display: none }
+#albumConfirmar p { margin: 0 0 14px; line-height: 1.4; font-size: .95rem; color: rgba(255,255,255,.8) }
+#albumConfirmar p b { display: block; font-size: 1.1rem; color: #fff; margin-bottom: 4px }
+#albumConfirmar .fila { display: flex; gap: 8px }
+#albumConfirmar .fila button { flex: 1; padding: 12px 14px }
+#albumVisor #albumBorrarSi { background: #c0392b }`;
 
   window.iniciarAlbum = function ({ sb, canal, viaje, yo, nombres }) {
     const A = window.AlbumLogica, M = window.ChatMedios, $ = (id) => document.getElementById(id);
@@ -48,6 +55,10 @@
     <button type="button" id="albumAlChat">Mandar al chat</button>
     <button type="button" id="albumEditar">Editar</button>
     <button type="button" id="albumBorrar">Borrar</button>
+  </div>
+  <div id="albumConfirmar" hidden role="alertdialog" aria-labelledby="albumConfirmarT">
+    <p id="albumConfirmarT"><b>¿Borrar esta foto?</b>Se borra del álbum para los dos. La copia en Google Drive queda guardada.</p>
+    <div class="fila"><button type="button" id="albumBorrarNo">Cancelar</button><button type="button" id="albumBorrarSi">Borrar foto</button></div>
   </div>
 </div>`);
 
@@ -159,7 +170,7 @@
       visor.querySelector('.cab b').innerHTML = ''; const b = visor.querySelector('.cab b');
       b.append(document.createTextNode(nom(f.autor))); const sm = document.createElement('small'); sm.textContent = fmtHora.format(new Date(f.tomada)); b.appendChild(sm);
       const mini = M.firmada(f.mini); img.src = mini || '';
-      const borrar = $('albumBorrar'); borrar.hidden = f.autor !== yo(); borrar.classList.remove('armed'); borrar.textContent = 'Borrar';
+      $('albumBorrar').hidden = f.autor !== yo(); $('albumConfirmar').hidden = true;
       $('albumAlChat').hidden = !window.chatEnviarFoto;
       const opciones = [A.verFoto(f), f.media, f.mini].filter((x, i, xs) => x && xs.indexOf(x) === i);
       (async () => {
@@ -178,7 +189,7 @@
       visor.hidden = false; history.pushState({ ...(history.state || {}), albumFoto: 1 }, '', location.hash || location.pathname + location.search);
       mostrar(f);
     }
-    function cerrarVisor() { visor.hidden = true; actual = null; img.removeAttribute('src'); }
+    function cerrarVisor() { visor.hidden = true; actual = null; img.removeAttribute('src'); $('albumConfirmar').hidden = true; }
     function salirDeFotoBorrada() { if (visor.hidden) return; if (window.EditorFoto?.abierto()) return; /* al volver del editor se cierra */ if (history.state?.albumFoto) history.back(); else cerrarVisor(); }
     $('albumVisorCerrar').addEventListener('click', () => { if (history.state?.albumFoto) history.back(); else cerrarVisor(); });
     addEventListener('popstate', () => {
@@ -252,11 +263,12 @@
       } catch (x) { console.error(x); window.aviso?.('No se pudo abrir la foto para editar. Revisá la señal.'); }
       finally { abriendoEditor = false; }
     });
-    $('albumBorrar').addEventListener('click', async (e) => {
-      const b = e.currentTarget; if (!actual || actual.autor !== yo()) return;
-      if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = '¿Borrar? Tocá de nuevo'; setTimeout(() => { b.classList.remove('armed'); b.textContent = 'Borrar'; }, 3000); return; }
-      if (borrando) return;
-      const f = actual; borrando = true;
+    // Borrar abre una confirmación; recién "Borrar foto" borra (un doble toque sin querer no alcanza)
+    $('albumBorrar').addEventListener('click', () => { if (!actual || actual.autor !== yo()) return; $('albumConfirmar').hidden = false; $('albumBorrarNo').focus(); });
+    $('albumBorrarNo').addEventListener('click', () => { $('albumConfirmar').hidden = true; });
+    $('albumBorrarSi').addEventListener('click', async () => {
+      if (!actual || actual.autor !== yo() || borrando) return;
+      const f = actual; borrando = true; $('albumConfirmar').hidden = true;
       try {
         const r = await sb.from('fotos').delete().eq('id', f.id).select('id');
         if (r.error || !r.data?.length) { console.error(r.error); return window.aviso?.('No se pudo borrar. Probá de nuevo.'); }
