@@ -109,6 +109,51 @@
   .total { margin-top: 14px; font-size: 14px; color: var(--piedra); }
   .total b { color: var(--basalto); }
 
+  [hidden] { display: none !important; }
+  /* Cada persona tiene su color en todas las secciones */
+  .pA { --yo: var(--lago); } .pB { --yo: var(--lenga); }
+
+  /* Qué llevamos */
+  .avance { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+  .avance div { font-size: 14px; color: var(--piedra); }
+  .avance b { display: block; font-size: 26px; font-weight: 900; color: var(--basalto); line-height: 1.1; }
+  .avance i { display: block; height: 6px; border-radius: 3px; background: var(--linea); margin-top: 6px; overflow: hidden; }
+  .avance i::after { content: ''; display: block; height: 100%; width: var(--p); background: var(--yo); }
+  .cat h3 { font-size: 15px; font-weight: 800; color: var(--piedra); margin: 18px 0 4px; }
+  .item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--linea); }
+  .item input { width: 22px; height: 22px; accent-color: var(--lago); flex-shrink: 0; }
+  .item label { flex: 1; font-weight: 600; }
+  .item.ok label { color: var(--piedra); text-decoration: line-through; font-weight: 400; }
+  .quien { font: inherit; font-size: 13px; font-weight: 800; border: 0; border-radius: 999px; padding: 4px 10px; background: color-mix(in srgb, var(--yo, var(--piedra)) 16%, transparent); color: var(--yo, var(--piedra)); }
+  .fila { display: flex; gap: 8px; margin-top: 18px; }
+  .fila input, .fila select { font: inherit; font-size: 16px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--linea); background: var(--papel); color: var(--basalto); min-width: 0; }
+  .fila input { flex: 1; }
+  .fila button { font: inherit; font-weight: 800; background: var(--lago); color: #fff; border: 0; border-radius: 10px; padding: 0 16px; }
+
+  /* Bingo */
+  .marcador { display: flex; gap: 18px; align-items: baseline; margin-bottom: 14px; font-size: 15px; color: var(--piedra); }
+  .marcador b { font-size: 24px; font-weight: 900; color: var(--yo); }
+  .carton { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+  .casilla { font: inherit; aspect-ratio: 1 / 1.15; border: 1px solid var(--linea); background: var(--papel); color: var(--basalto); border-radius: 8px; padding: 4px 3px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 9.5px; line-height: 1.15; text-align: center; overflow: hidden; }
+  .casilla .e { font-size: 20px; line-height: 1; }
+  .casilla.pA, .casilla.pB { background: var(--yo); border-color: var(--yo); color: #fff; }
+  .casilla .por { font-weight: 800; font-size: 10px; }
+  .casilla.libre { background: var(--lupino); border-color: var(--lupino); color: #fff; font-weight: 800; }
+
+  /* Cuentas claras */
+  .saldo { padding: 18px 0 16px; border-bottom: 1px solid var(--linea); }
+  .saldo p { margin: 0; font-size: 14px; color: var(--piedra); }
+  .saldo strong { display: block; font-size: 26px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.15; margin-top: 4px; }
+  .gasto { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--linea); }
+  .gasto .que { flex: 1; font-weight: 600; }
+  .gasto .que span { display: block; font-size: 13px; font-weight: 400; color: var(--piedra); }
+  .gasto .monto { font-weight: 800; }
+
+  /* Ajustes */
+  .ajustes label { display: block; font-size: 14px; font-weight: 600; color: var(--piedra); margin-top: 14px; }
+  .ajustes input { display: block; width: 100%; margin-top: 4px; font: inherit; font-size: 16px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--linea); background: var(--papel); color: var(--basalto); }
+  .ajustes button { margin-top: 18px; font: inherit; font-weight: 800; background: var(--lago); color: #fff; border: 0; border-radius: 10px; padding: 12px 22px; }
+
   /* Franja del chat: igual que hoy de lugar, con la nueva paleta */
   .chat { position: fixed; left: 0; right: 0; bottom: 0; background: var(--papel); border-top: 1px solid var(--linea); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
   .chat div { max-width: 440px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
@@ -117,7 +162,7 @@
   .chat span { font-size: 14px; color: var(--piedra); }
   .chat .abrir { margin-left: auto; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--lago); color: #fff; font-size: 18px; }
 
-  .modo { position: fixed; top: 12px; right: 12px; z-index: 5; font: inherit; font-size: 13px; font-weight: 600; background: var(--basalto); color: var(--niebla); border: 0; border-radius: 999px; padding: 6px 12px; opacity: .85; }
+  .modo { position: absolute; top: 12px; right: 12px; z-index: 5; font: inherit; font-size: 13px; font-weight: 600; background: var(--basalto); color: var(--niebla); border: 0; border-radius: 999px; padding: 6px 12px; opacity: .85; }
 </style>
 </head>
 <body>
@@ -180,7 +225,7 @@
     <button role="tab" aria-selected="false">Ajustes</button>
   </nav>
 
-  <section class="seccion">
+  <section class="seccion" data-p="0">
     <h2>Hoja de ruta</h2>
     <p>Cada parada con su fecha, los km del tramo y lo que no hay que perderse. (Paradas de ejemplo.)</p>
     <ol class="paradas">
@@ -196,6 +241,57 @@
       <button type="submit">Agregar parada</button>
     </form>
     <p class="total">En total: <b>1.520 km</b> de ruta.</p>
+  </section>
+
+  <section class="seccion" data-p="1" hidden>
+    <h2>Qué llevamos</h2>
+    <p>Tocá el nombre al lado de cada cosa para cambiar quién la lleva. (Lista de ejemplo.)</p>
+    <div class="avance">
+      <div class="pA">Lipu tiene listo<b>3 de 5</b><i style="--p:60%"></i></div>
+      <div class="pB">Guti tiene listo<b>1 de 4</b><i style="--p:25%"></i></div>
+    </div>
+    <div class="cat"><h3>Papeles del auto</h3>
+      <div class="item ok"><input type="checkbox" checked aria-label="Listo"><label>Cédula verde y seguro</label><button class="quien pA">Lipu</button></div>
+      <div class="item"><input type="checkbox" aria-label="Listo"><label>VTV al día</label><button class="quien pA">Lipu</button></div>
+    </div>
+    <div class="cat"><h3>Seguridad en ruta</h3>
+      <div class="item ok"><input type="checkbox" checked aria-label="Listo"><label>Matafuego y balizas</label><button class="quien pA">Lipu</button></div>
+      <div class="item"><input type="checkbox" aria-label="Listo"><label>Rueda de auxilio inflada</label><button class="quien">Cualquiera</button></div>
+    </div>
+    <div class="cat"><h3>Mate y comida</h3>
+      <div class="item ok"><input type="checkbox" checked aria-label="Listo"><label>Termo y yerba para 3 días</label><button class="quien pB">Guti</button></div>
+      <div class="item"><input type="checkbox" aria-label="Listo"><label>Alfajores para el camino</label><button class="quien pB">Guti</button></div>
+    </div>
+    <div class="cat"><h3>Ropa</h3>
+      <div class="item"><input type="checkbox" aria-label="Listo"><label>Campera de abrigo, de noche hace frío</label><button class="quien pB">Guti</button></div>
+    </div>
+    <div class="fila"><input placeholder="Algo más para llevar" aria-label="Ítem"><button type="button">Sumar</button></div>
+  </section>
+
+  <section class="seccion" data-p="2" hidden>
+    <h2>Bingo de ruta</h2>
+    <p>El que lo ve primero lo marca. Línea completa paga el café en la próxima YPF.</p>
+    <div class="marcador"><span class="pA">Lipu <b>3</b></span><span class="pB">Guti <b>2</b></span><span>Sin líneas todavía</span></div>
+    <div class="carton" id="carton"></div>
+  </section>
+
+  <section class="seccion" data-p="3" hidden>
+    <h2>Cuentas claras</h2>
+    <div class="saldo"><p>Gastado entre los dos: $ 186.500</p><strong>Guti le debe $ 21.750 a Lipu</strong></div>
+    <div class="gasto"><div class="que">Nafta en Río Cuarto<span>Pagó Lipu</span></div><div class="monto">$ 68.000</div></div>
+    <div class="gasto"><div class="que">Hotel en Neuquén<span>Pagó Guti</span></div><div class="monto">$ 72.000</div></div>
+    <div class="gasto"><div class="que">Cena<span>Pagó Lipu</span></div><div class="monto">$ 46.500</div></div>
+    <div class="fila"><input placeholder="Qué: nafta, peaje, cena" aria-label="Qué"><input inputmode="numeric" placeholder="$" aria-label="Monto" style="flex:0 0 80px"><button type="button">Anotar</button></div>
+    <p class="total">Montos de ejemplo.</p>
+  </section>
+
+  <section class="seccion ajustes" data-p="4" hidden>
+    <h2>Ajustes del viaje</h2>
+    <label>Nombre 1<input value="Lipu"></label>
+    <label>Nombre 2<input value="Guti"></label>
+    <label>Hora de salida (19/11)<input type="time" value="07:00"></label>
+    <label>Destino final<input value="San Martín de los Andes"></label>
+    <button type="button">Guardar</button>
   </section>
 </main>
 
@@ -226,6 +322,37 @@
     document.getElementById('mojon').style.setProperty('--x', (x * 100) + '%');
   }
   tic(); setInterval(tic, 1000);
+
+  // pestañas
+  const tabs = [...document.querySelectorAll('nav [role=tab]')], paneles = [...document.querySelectorAll('[data-p]')];
+  tabs.forEach((t, i) => t.addEventListener('click', () => {
+    tabs.forEach((x, j) => x.setAttribute('aria-selected', String(i === j)));
+    paneles.forEach((p) => { p.hidden = p.dataset.p !== String(i); });
+    t.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }));
+
+  // bingo de ejemplo (las mismas casillas que la página real)
+  const BINGO = [
+    ['🦙', 'Guanaco al costado de la ruta'], ['🐦', 'Choique cruzando'], ['🚩', 'Santuario del Gauchito Gil'], ['🇦🇷', 'Cartel de Malvinas argentinas'], ['🌬️', 'Ráfaga que mueve el auto'],
+    ['🪨', 'Tramo de ripio'], ['⛽', 'Próxima estación a 100 km'], ['🐑', 'Majada de ovejas en la ruta'], ['🍎', 'Barrera sanitaria'], ['🏔️', 'Primer cerro nevado'],
+    ['💧', 'Lago color turquesa'], ['🦊', 'Zorro gris'], ['🚗', 'Salimos'], ['🚴', 'Cicloviajero cargado'], ['🏍️', 'Motoqueros que saludan'],
+    ['🗣️', '"¿Falta mucho?"'], ['📵', 'Sin señal más de una hora'], ['🌅', 'Atardecer después de las 21'], ['🍖', 'Cordero patagónico'], ['🌈', 'Arcoíris en la estepa'],
+    ['🛣️', 'Cartel de la Ruta 40'], ['🏚️', 'Pueblo de menos de 500'], ['🐄', 'Vaca suelta en la banquina'], ['🌊', 'Ver el mar desde la ruta'], ['🍫', 'Alfajores regionales'],
+  ];
+  const marcas = { 0: 'A', 3: 'B', 7: 'A', 11: 'B', 20: 'A' }, nom = { A: 'Lipu', B: 'Guti' };
+  const carton = document.getElementById('carton');
+  function pintarBingo() {
+    carton.innerHTML = BINGO.map(([e, t], i) => i === 12
+      ? `<div class="casilla libre"><span class="e">${e}</span>${t}</div>`
+      : `<button type="button" class="casilla ${marcas[i] ? 'p' + marcas[i] : ''}" data-b="${i}"><span class="e">${e}</span>${t}${marcas[i] ? `<span class="por">${nom[marcas[i]]}</span>` : ''}</button>`).join('');
+  }
+  pintarBingo();
+  carton.addEventListener('click', (e) => {
+    const c = e.target.closest('[data-b]'); if (!c) return;
+    const i = c.dataset.b; marcas[i] = !marcas[i] ? 'A' : marcas[i] === 'A' ? 'B' : undefined; pintarBingo();
+  });
+  // tildar en la lista de ejemplo
+  document.querySelectorAll('.item input').forEach((c) => c.addEventListener('change', () => c.closest('.item').classList.toggle('ok', c.checked)));
   document.getElementById('modo').addEventListener('click', (e) => {
     const n = document.body.classList.toggle('noche');
     e.target.textContent = n ? 'Ver de día' : 'Ver de noche';
