@@ -43,10 +43,11 @@
     return 'últ. vez el ' + dia.slice(8, 10) + '/' + dia.slice(5, 7) + ' a las ' + hm;
   }
   /** patrón ILIKE para buscar en el chat, con % y _ escapados (null si no hay nada que buscar) */
-  function patronBusqueda(q) { const t = String(q ?? '').trim(); return t ? '%' + t.replace(/[\\%_]/g, (c) => '\\' + c) + '%' : null; }
+  function patronBusqueda(q) { const t = String(q ?? '').split('*').join('').trim(); /* PostgREST toma el asterisco como comodín */ return t ? '%' + t.replace(/[\\%_]/g, (c) => '\\' + c) + '%' : null; }
 
   const porFecha = (a, b) => Date.parse(a.creado) - Date.parse(b.creado);
-  const fusionar = (lista, m) => [...lista.filter((x) => x.id !== m.id), m].sort(porFecha);
+  // un eliminado no vuelve: una respuesta o un broadcast atrasado (reacción, edición) no lo pisa
+  const fusionar = (lista, m) => { const prev = lista.find((x) => x.id === m.id); if (prev?.tipo === 'eliminado' && m.tipo !== 'eliminado') return lista; return [...lista.filter((x) => x.id !== m.id), m].sort(porFecha); };
   const quitar = (lista, id) => lista.filter((x) => x.id !== id);
   const noLeidos = (lista, yo, vistoHasta) => lista.filter((m) => m.autor !== yo && Date.parse(m.creado) > vistoHasta).length;
 

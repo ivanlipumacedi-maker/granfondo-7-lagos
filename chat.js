@@ -46,7 +46,11 @@
 .burbuja .txt { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .97rem; line-height: 1.35 }
 .burbuja .hora { display: block; text-align: right; font-size: .68rem; opacity: .7; margin-top: 2px; white-space: nowrap }
 .burbuja .hora .tilde { margin-left: 3px; font-weight: 800; letter-spacing: -3px; display: inline-block; padding-right: 3px }
-.burbuja .hora .tilde.t-leido { color: #6bff9a; text-shadow: 0 0 2px rgba(0,0,0,.45); opacity: 1 }
+/* verde "leído" que se vea sobre cada burbuja: claro sobre el lago oscuro, oscuro sobre las burbujas claras */
+.burbuja .hora .tilde.t-leido { opacity: 1; color: #0a6b2c }
+.msg.A .burbuja .hora .tilde.t-leido { color: #7dffa8 }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .msg.A .burbuja .hora .tilde.t-leido { color: #0a6b2c } }
+:root[data-theme="dark"] .msg.A .burbuja .hora .tilde.t-leido { color: #0a6b2c }
 .msg.mio .burbuja .hora { opacity: .85 }
 .burbuja.eliminado .txt { font-style: italic; opacity: .7 }
 #chatPanel header .tit { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.15 }
@@ -164,7 +168,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     const L = window.ChatLogica;
     const $ = (id) => document.getElementById(id);
     const otro = () => (yo() === 'A' ? 'B' : 'A');
-    const CAMPOS = 'id,autor,tipo,texto,reacciones,creado,archivo,ancho,alto,duracion_ms,externo,responde_a';
+    const CAMPOS = 'id,autor,tipo,texto,reacciones,creado,archivo,ancho,alto,duracion_ms,externo,responde_a,editado';
     const M = window.ChatMedios, medios = new Map(); // id → nodo de foto/audio, se reusa entre redibujos
     let presionLargaHasta = 0; // el click que sigue a una presión larga no abre el visor
     let desliz = null; // deslizar para responder (se declara acá: pintarLista lo cancela al redibujar)
@@ -230,9 +234,9 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
         else if (!url && img) img.remove();
       });
       document.querySelectorAll('#chatBarra .nom, #chatPanel .nom').forEach((e) => { e.textContent = n[o] || '?'; });
-      const ult = lista[lista.length - 1];
+      const visibles = lista.filter((m) => !ocultos.has(m.id)), ult = visibles[visibles.length - 1];
       $('chatBarra').querySelector('.ult').textContent = ult ? (ult.autor === yo() ? 'Vos: ' : '') + L.resumen(ult) : `Escribile a ${n[o] || 'tu compañero'} 💬`;
-      const nl = abierto() ? 0 : L.noLeidos(lista, yo(), visto());
+      const nl = abierto() ? 0 : L.noLeidos(visibles, yo(), visto());
       $('chatBadge').hidden = !nl; $('chatBadge').textContent = nl > 99 ? '99+' : String(nl);
       ajustarPadding();
     }
@@ -247,10 +251,10 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
         if (ocultos.has(m.id)) continue; // eliminado para mí
         const fila = document.createElement('div'); fila.className = `msg ${m.autor === yo() ? 'mio' : 'otro'} ${m.autor}` + (m.id === resaltadoId && Date.now() < resaltadoHasta ? ' resaltado' : ''); fila.dataset.id = m.id;
         const bur = document.createElement('div'); bur.className = 'burbuja' + (m.id === selId ? ' sel' : ''); bur.dataset.id = m.id;
-        const hora = document.createElement('span'); hora.className = 'hora'; hora.textContent = (destacados.has(m.id) ? '⭐ ' : '') + (m.editado ? 'Editado ' : '') + L.horaCorta(m.creado);
+        const hora = document.createElement('span'); hora.className = 'hora'; hora.textContent = (destacados.has(m.id) && m.tipo !== 'eliminado' ? '⭐ ' : '') + (m.editado ? 'Editado ' : '') + L.horaCorta(m.creado);
         const ti = L.tilde(m, yo(), permite('leido') ? estados[otro()] : { ...estados[otro()], leido: null });
         if (ti) { const t = document.createElement('span'); t.className = 'tilde t-' + ti; t.textContent = ti === 'reloj' ? '🕓' : ti === 'enviado' ? '✓' : '✓✓'; t.setAttribute('aria-label', { reloj: 'Enviando', enviado: 'Enviado', entregado: 'Entregado', leido: 'Leído' }[ti]); hora.appendChild(t); }
-        if (m.responde_a) bur.appendChild(nodoCita(m.responde_a));
+        if (m.responde_a && m.tipo !== 'eliminado') bur.appendChild(nodoCita(m.responde_a));
         if (m.tipo === 'sticker') {
           bur.classList.add('sticker', 'media'); if (m.subiendo) bur.classList.add('subiendo');
           bur.appendChild(nodoSticker(m));
@@ -260,7 +264,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
           if (m.subiendo) { const e = document.createElement('div'); e.className = 'estado'; e.textContent = 'Subiendo…'; bur.appendChild(e); }
         } else { if (m.tipo === 'eliminado') { bur.classList.add('eliminado'); medios.delete(m.id); } const txt = document.createElement('div'); txt.className = 'txt'; txt.textContent = m.tipo === 'eliminado' ? L.resumen(m) : m.texto || L.resumen(m); bur.appendChild(txt); }
         bur.appendChild(hora); fila.appendChild(bur);
-        const rs = Object.values(m.reacciones || {});
+        const rs = m.tipo === 'eliminado' ? [] : Object.values(m.reacciones || {});
         if (rs.length) { const r = document.createElement('div'); r.className = 'reacs'; r.textContent = rs[0] === rs[1] ? `${rs[0]} 2` : rs.join(' '); fila.appendChild(r); }
         cont.appendChild(fila);
       }
@@ -275,9 +279,10 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     const priv = { A: {}, B: {} };
     const miPriv = (k) => priv[yo()]?.[k] !== false;
     const permite = (k) => priv.A?.[k] !== false && priv.B?.[k] !== false;
-    if (db) for (const k of ['A', 'B']) db.doc('chatpriv/' + k).onSnapshot((d) => { priv[k] = (d.exists && d.data()) || {}; presente(); pintar(); pintarAjustes(); });
+    if (db) for (const k of ['A', 'B']) db.doc('chatpriv/' + k).onSnapshot((d) => { priv[k] = (d.exists && d.data()) || {}; privCargado[k] = true; presente(); pintar(); pintarAjustes(); });
     function pintarAjustes() { document.querySelectorAll('#chatAjustes [data-priv]').forEach((c) => { c.checked = miPriv(c.dataset.priv); }); }
-    let marcado = { ent: 0, lei: 0 }, marcando = false;
+    let marcado = { ent: 0, lei: 0 }, marcando = false, otraMarca = false, otraVisto = false, sinLeerHastaAbrir = false;
+    const privCargado = { A: false, B: false };
     const maxDelOtro = () => lista.reduce((mx, m) => (m.autor === otro() && !String(m.id).startsWith('tmp-') ? Math.max(mx, Date.parse(m.creado)) : mx), 0);
     async function cargarEstados() {
       const { data, error } = await sb.from('chat_estado').select('*');
@@ -286,8 +291,11 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       pintar();
     }
     async function marcarEstado(visto) {
-      if (marcando) return;
-      const hasta = maxDelOtro(), leyendo = abierto() && !document.hidden && miPriv('leido');
+      if (marcando) { otraMarca = true; otraVisto = otraVisto || !!visto; return; }
+      // leído solo con el chat a la vista (sin búsqueda, destacados, ajustes, visor, stickers ni cámara encima),
+      // con mis ajustes ya cargados y no justo después de cambiar "Soy"
+      const tapado = ['chatBuscar', 'chatDestacados', 'chatAjustes', 'chatVisor', 'chatStickers', 'camara', 'albumVisor', 'editorFoto'].some((x) => $(x) && !$(x).hidden);
+      const hasta = maxDelOtro(), leyendo = abierto() && !document.hidden && !tapado && !sinLeerHastaAbrir && privCargado[yo()] && miPriv('leido');
       if (visto && !miPriv('ultimaVez')) visto = false;
       const ent = hasta > marcado.ent ? hasta : 0, lei = leyendo && hasta > marcado.lei ? hasta : 0;
       if (!ent && !lei && !visto) return;
@@ -298,7 +306,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
         if (ent) marcado.ent = ent; if (lei) marcado.lei = lei;
         estados[yo()] = data; avisar('estado', { fila: data });
       } catch (e) { console.warn('no se pudo marcar el estado', e.message); }
-      finally { marcando = false; }
+      finally { marcando = false; if (otraMarca) { const v = otraVisto; otraMarca = false; otraVisto = false; marcarEstado(v); } }
     }
     // el service worker marca "entregado" cuando llega el aviso con la app cerrada: necesita saber el viaje y quién soy
     function guardarParaAvisos() {
@@ -321,14 +329,17 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     // presencia: solo se avisa cuando cambia (cada track de más hace que el canal se reconecte y se pierdan mensajes)
     let enPresencia = null;
     function presente() {
+      if (!privCargado[yo()]) return; // se vuelve a llamar cuando llegan mis ajustes
       const quiero = !document.hidden && miPriv('ultimaVez');
       if (quiero === enPresencia) return;
-      if (enPresencia !== null && document.hidden) marcarEstado(true);
+      if (miPriv('ultimaVez') && (quiero || enPresencia !== null)) marcarEstado(true); // últ. vez = al abrir y al irse
       enPresencia = quiero;
       if (quiero) canal.track?.({ quien: yo() })?.catch?.(() => {}); else canal.untrack?.()?.catch?.(() => {});
     }
     document.addEventListener('visibilitychange', presente);
     setTimeout(presente, 1500);
+    // el canal se reconectó (mala señal): la presencia se perdió y pudieron perderse estados
+    window.alSuscribirCanal = () => { enPresencia = null; presente(); cargarEstados(); };
 
     /* ---------- fijado (compartido) y destacados / eliminados para mí (de este teléfono) ---------- */
     let fijadoId = null, pidiendoFijo = false;
@@ -381,6 +392,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     }
     function responder(id) {
       const o = originalDe(id); if (!o) return;
+      if (editandoMsg) { editandoMsg = null; $('chatTexto').value = ''; autoAlto(); actualizarBoton(); } // responder cancela la edición
       citando = id;
       $('chatCita').querySelector('b').textContent = 'Respondiendo a ' + (o.autor === yo() ? 'vos' : nombres()[o.autor] || '');
       $('chatCita').querySelector('span').textContent = L.textoCita(o);
@@ -714,7 +726,8 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     function mostrarHoja(si) { $('chatFotoHoja').hidden = !si; $('chatFotoBtn').setAttribute('aria-expanded', String(si)); }
     function abrirHoja() { mostrarHoja(true); history.pushState({ ...(history.state || {}), chat: 1, hoja: 1 }, '', '#chat'); }
     function cerrarHoja() { if ($('chatFotoHoja').hidden) return; if (history.state?.hoja) history.back(); else mostrarHoja(false); }
-    $('chatFotoBtn').addEventListener('click', () => { if (!window.abrirCamara) return $('chatFoto').click(); if ($('chatFotoHoja').hidden) abrirHoja(); else cerrarHoja(); });
+    const editandoAviso = () => { if (!editandoMsg) return false; window.aviso?.('Terminá o cancelá la edición primero (✕ arriba del teclado).'); return true; };
+    $('chatFotoBtn').addEventListener('click', () => { if (editandoAviso()) return; if (!window.abrirCamara) return $('chatFoto').click(); if ($('chatFotoHoja').hidden) abrirHoja(); else cerrarHoja(); });
     $('chatFotoCamara').addEventListener('click', () => { mostrarHoja(false); window.abrirCamara?.({ alChat: true, reemplazar: !!history.state?.hoja }); });
     $('chatFotoHoja').querySelector('label').addEventListener('click', () => setTimeout(cerrarHoja, 0));
     document.addEventListener('pointerdown', (e) => { if (!$('chatFotoHoja').hidden && !e.target.closest('#chatFotoHoja, #chatFotoBtn')) cerrarHoja(); });
@@ -752,7 +765,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       localStorage.setItem('stkTab', t);
       if (t === 'nuestros') pintarNuestros(); else window.alAbrirGiphy?.();
     }
-    $('chatStickersBtn').addEventListener('click', abrirStickers);
+    $('chatStickersBtn').addEventListener('click', () => { if (!editandoAviso()) abrirStickers(); });
     $('chatStickersCerrar').addEventListener('click', cerrarStickers);
     document.querySelector('#chatStickers .tabs2').addEventListener('click', (e) => { const b = e.target.closest('[data-stab]'); if (b) mostrarTabStk(b.dataset.stab); });
     async function mandarSticker(fuente) {
@@ -873,7 +886,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     $('chatVisor').addEventListener('click', () => { if (history.state?.foto) history.back(); else cerrarVisor(); });
     // la página lo llama en cada redibujo del encabezado (también al recargar la config): solo se cancela la respuesta si cambió quién soy
     let soyAntes = yo();
-    window.alCambiarSoyChat = () => { if (yo() !== soyAntes) { soyAntes = yo(); quitarCita(); marcado = { ent: 0, lei: 0 }; enPresencia = null; presente(); guardarParaAvisos(); } pintar(); };
+    window.alCambiarSoyChat = () => { if (yo() !== soyAntes) { soyAntes = yo(); quitarCita(); marcado = { ent: 0, lei: 0 }; sinLeerHastaAbrir = true; enPresencia = null; presente(); guardarParaAvisos(); } pintar(); };
 
     /* ---------- datos ---------- */
     const avisar = (accion, payload) => canal.send({ type: 'broadcast', event: 'chat', payload: { accion, ...payload } });
@@ -901,6 +914,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       if (p.accion === 'estado' && p.fila?.quien) { estados[p.fila.quien] = p.fila; pintar(); return; }
       if (p.accion === 'escribiendo') { if (p.quien === otro()) { escribeHasta = Date.now() + 4000; pintarSub(); setTimeout(pintarSub, 4100); } return; }
       if (p.accion === 'nuevo' && p.m?.autor === otro()) escribeHasta = 0;
+      if (p.accion === 'cambio' && p.m?.id && !lista.some((x) => x.id === p.m.id)) { if (citados.has(p.m.id)) { citados.set(p.m.id, p.m); pintar(); } return; }
       if ((p.accion === 'nuevo' || p.accion === 'cambio') && p.m?.id) lista = L.fusionar(lista, p.m);
       else if (p.accion === 'borrado' && p.id) { lista = L.quitar(lista, p.id); citados.set(p.id, null); if (citando === p.id) quitarCita(); limpiarMedios(); }
       else return;
@@ -933,7 +947,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     function abrirPanel() {
       if (abierto()) return;
       if (location.hash !== '#chat') history.pushState({ chat: 1 }, '', '#chat');
-      $('chatPanel').hidden = false; document.documentElement.style.overflow = 'hidden';
+      $('chatPanel').hidden = false; document.documentElement.style.overflow = 'hidden'; sinLeerHastaAbrir = false;
       marcarVisto(); pintar();
       const cont = $('chatLista'); cont.scrollTop = cont.scrollHeight;
     }
@@ -943,7 +957,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     $('chatCerrar').addEventListener('click', () => { if (history.state?.chat) history.back(); else { history.replaceState(null, '', sinHash()); cerrarPanel(); } });
     window.addEventListener('popstate', () => {
       if (!$('chatFotoHoja').hidden && !history.state?.hoja) { mostrarHoja(false); if (location.hash === '#chat') return; }
-      for (const capa of ['chatBuscar', 'chatDestacados', 'chatAjustes']) if (!$(capa).hidden && history.state?.capa !== capa) { $(capa).hidden = true; if (location.hash === '#chat') return; }
+      for (const capa of ['chatBuscar', 'chatDestacados', 'chatAjustes']) if (!$(capa).hidden && history.state?.capa !== capa) { $(capa).hidden = true; marcarEstado(); if (location.hash === '#chat') return; }
       if (!$('stickerEditor').hidden && !history.state?.stked) { cerrarEditor(); if (location.hash === '#chat' && history.state?.stk) return; }
       if (!$('chatStickers').hidden && !history.state?.stk) { ocultarStickers(); if (location.hash === '#chat') return; }
       if (!$('chatVisor').hidden && !history.state?.foto) { cerrarVisor(); if (location.hash === '#chat') return; }
@@ -955,7 +969,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     /* ---------- escribir ---------- */
     function autoAlto() { const t = $('chatTexto'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 130) + 'px'; }
     $('chatTexto').addEventListener('input', autoAlto);
-    $('chatTexto').addEventListener('input', () => { if (miPriv('escribiendo') && $('chatTexto').value.trim() && Date.now() - ultimoEscribo > 2500) { ultimoEscribo = Date.now(); avisar('escribiendo', { quien: yo() }); } });
+    $('chatTexto').addEventListener('input', () => { if (!editandoMsg && privCargado[yo()] && miPriv('escribiendo') && $('chatTexto').value.trim() && Date.now() - ultimoEscribo > 2500) { ultimoEscribo = Date.now(); avisar('escribiendo', { quien: yo() }); } });
     $('chatTexto').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !tactil) { e.preventDefault(); enviar(); } });
     $('chatForm').addEventListener('submit', (e) => { e.preventDefault(); if (!modoMic()) enviar(); });
 
@@ -971,6 +985,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       $('chatFijar').hidden = m.tipo === 'eliminado' || id.startsWith('tmp-'); $('chatFijar').textContent = fijadoId === id ? 'Desfijar' : 'Fijar';
       $('chatDestacar').hidden = m.tipo === 'eliminado' || id.startsWith('tmp-'); $('chatDestacar').textContent = destacados.has(id) ? 'Quitar destacado' : 'Destacar';
       $('chatBorrarMio').hidden = id.startsWith('tmp-');
+      $('chatAcciones').querySelector('.reac').hidden = m.tipo === 'eliminado';
       if (m.tipo === 'eliminado') { $('chatResponder').hidden = true; $('chatCopiar').hidden = true; }
       $('chatAcciones').hidden = false;
       history.pushState({ chat: 1, acc: 1 }, '', '#chat');
@@ -1027,7 +1042,11 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     $('chatFijado').addEventListener('click', () => { if (fijadoId) irAlOriginal(fijadoId); });
 
     /* ---------- buscar en el chat y destacados (capas con su lugar en el historial) ---------- */
-    function abrirCapa(id) { $(id).hidden = false; $('chatPanel').style.setProperty('--cab', $('chatPanel').querySelector('header').offsetHeight + 'px'); history.pushState({ chat: 1, capa: id }, '', '#chat'); }
+    function abrirCapa(id) {
+      const otra = ['chatBuscar', 'chatDestacados', 'chatAjustes'].find((x) => !$(x).hidden);
+      if (otra === id) return; // ya abierta (doble toque)
+      if (otra) { $(otra).hidden = true; $(id).hidden = false; history.replaceState({ chat: 1, capa: id }, '', '#chat'); return; }
+      $(id).hidden = false; $('chatPanel').style.setProperty('--cab', $('chatPanel').querySelector('header').offsetHeight + 'px'); history.pushState({ chat: 1, capa: id }, '', '#chat'); }
     function cerrarCapa(id) { if ($(id).hidden) return; if (history.state?.capa === id) history.back(); else $(id).hidden = true; }
     const filaRes = (m, marca) => {
       const b = document.createElement('button'); b.type = 'button'; b.dataset.ir = m.id;
@@ -1081,7 +1100,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       if (error) { console.error(error); window.aviso?.('No se pudo eliminar. Probá de nuevo.'); return; }
       medios.get(id)?.querySelector?.('audio')?.pause(); medios.delete(id);
       if (citando === id || editandoMsg === id) quitarCita();
-      lista = L.fusionar(lista, res.fila); citados.set(id, res.fila); pintar(); avisar('cambio', { m: res.fila });
+      lista = L.fusionar(lista, res.fila); citados.set(id, res.fila); if (destacados.delete(id)) guardarSet('Destacados', destacados); pintar(); avisar('cambio', { m: res.fila });
       if (fijadoId === id) db?.doc('chatfijo/actual').set({ id: null });
       // los archivos de stickers no se borran (los usan otros mensajes y "Nuestros")
       if (res.archivo_antes && res.tipo_antes !== 'sticker') sb.storage.from(M.BUCKET).remove(res.tipo_antes === 'foto' ? [res.archivo_antes, M.rutaMini(res.archivo_antes)] : [res.archivo_antes]).then(({ error }) => { if (error) console.error(error); });

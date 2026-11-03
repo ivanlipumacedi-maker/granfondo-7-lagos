@@ -740,7 +740,7 @@ function crearDb(sb, viaje) {
     avisarCambio(col, id, antes, null);
   }
   canal.on('broadcast', { event: 'cambio' }, ({ payload }) => { if (subs[payload?.col]) cargar(payload.col).catch(onErr); });
-  canal.subscribe((st) => { if (st === 'SUBSCRIBED') Object.keys(subs).forEach((c) => cargar(c).catch(onErr)); });
+  canal.subscribe((st) => { if (st === 'SUBSCRIBED') { Object.keys(subs).forEach((c) => cargar(c).catch(onErr)); window.alSuscribirCanal?.(); } });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) Object.keys(subs).forEach((c) => cargar(c).catch(onErr)); });
 
   const docRef = (col, id) => ({
@@ -800,7 +800,7 @@ function iniciarAvisos(sb, viaje) {
         }
       } else if (b.id === 'avisosOff') {
         const sub = await reg.pushManager.getSubscription();
-        if (sub) { await sb.from('push_subs').delete().eq('endpoint', sub.endpoint); await sub.unsubscribe(); }
+        if (sub) { await sb.from('push_subs').delete().eq('endpoint', sub.endpoint); await sub.unsubscribe(); caches.delete('rumbo-config').catch(() => {}); }
       }
     } catch (err) { console.error(err); aviso('No se pudieron cambiar los avisos. Revisá la conexión y probá de nuevo.'); }
     pintar();
