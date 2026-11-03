@@ -6,8 +6,11 @@
 #editorFoto[hidden] { display: none }
 #editorFoto .cab { display: flex; align-items: center; gap: 8px; padding: calc(10px + env(safe-area-inset-top, 0px)) 10px 8px }
 #editorFoto .cab b { flex: 1; font-weight: 700 }
-#editorFoto button { font: inherit; color: #fff; background: rgba(255,255,255,.12); border: 0; border-radius: 999px; padding: 10px 14px; font-weight: 700; font-size: .9rem }
-#editorFoto button:disabled { opacity: .45 }
+/* solo nuestros botones: los del editor de filtros (Filerobot) quedan con sus propios colores */
+#editorFoto > .cab button, #editorFoto > .modos button, #editorFoto .herr button { font: inherit; color: #fff; background: rgba(255,255,255,.12); border: 0; border-radius: 999px; padding: 10px 14px; font-weight: 700; font-size: .9rem }
+#editorFoto > .cab button:disabled, #editorFoto > .modos button:disabled, #editorFoto .herr button:disabled { opacity: .45 }
+/* el guardar y el cerrar de Filerobot sobran: están "Guardar copia" y la ✕ de arriba */
+#editorFoto .fr .FIE_topbar-save-button, #editorFoto .fr .FIE_topbar-close-button { display: none !important }
 #editorFoto #editorGuardar { background: #4dbdb7; color: #062a2a }
 #editorFoto .modos { display: flex; gap: 6px; padding: 0 10px 8px }
 #editorFoto .modos button { flex: 1 }
@@ -34,7 +37,7 @@
     blurTool: 'Desenfoque', warmthTool: 'Calidez', blur: 'Desenfoque', textTool: 'Texto', penTool: 'Lápiz', lineTool: 'Línea', arrowTool: 'Flecha',
     rectangleTool: 'Rectángulo', ellipseTool: 'Elipse', polygonTool: 'Polígono', imageTool: 'Imagen', size: 'Tamaño', opacity: 'Opacidad', stroke: 'Borde',
     shadow: 'Sombra', position: 'Posición', fontFamily: 'Letra', width: 'Ancho', height: 'Alto', resetSize: 'Volver al tamaño original',
-    resizeWidthTitle: 'Ancho en píxeles', resizeHeightTitle: 'Alto en píxeles', toggleRatioLockTitle: 'Mantener proporción', tabsMenu: 'Menú', download: 'Bajar',
+    Invert: 'Invertir', 'Black & White': 'Blanco y negro', resizeWidthTitle: 'Ancho en píxeles', resizeHeightTitle: 'Alto en píxeles', toggleRatioLockTitle: 'Mantener proporción', tabsMenu: 'Menú', download: 'Bajar',
   };
 
   let fiePromesa = null;
@@ -58,7 +61,7 @@
 #editorDescartar[hidden] { display: none }
 #editorDescartar p { margin: 0 0 10px; font-weight: 700 }
 #editorDescartar div { display: flex; gap: 8px; justify-content: flex-end }
-#editorFoto #editorDescartar button { background: #eee; color: #111 }
+#editorFoto #editorDescartar button { font: inherit; border: 0; border-radius: 999px; padding: 10px 14px; font-weight: 700; font-size: .9rem; background: #eee; color: #111 }
 #editorFoto #editorDescartar #editorDescartarSi { background: #c0392b; color: #fff }`;
     document.head.appendChild(st);
     document.body.insertAdjacentHTML('beforeend', `
@@ -168,7 +171,7 @@
         const { TABS } = FIE; refDatos = {};
         fie = new FIE(fr, {
           source: url, useBackendTranslations: false, translations: TRAD, language: 'en',
-          tabsIds: [TABS.ADJUST, TABS.FINETUNE, TABS.FILTERS, TABS.ANNOTATE, TABS.RESIZE], defaultTabId: TABS.FINETUNE,
+          tabsIds: [TABS.ADJUST, TABS.FINETUNE, TABS.FILTERS, TABS.ANNOTATE, TABS.RESIZE], defaultTabId: TABS.FILTERS,
           defaultSavedImageType: 'jpeg', defaultSavedImageQuality: 0.92, savingPixelRatio: 1, previewPixelRatio: window.devicePixelRatio || 1,
           getCurrentImgDataFnRef: refDatos, closeAfterSave: false, onBeforeSave: () => false,
           onSave: (o) => { if (o?.imageCanvas) terminar(o.imageCanvas); },
