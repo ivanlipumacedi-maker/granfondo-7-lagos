@@ -1,6 +1,8 @@
 // Lógica pura de la hoja de ruta (sin DOM). En el navegador queda en window.RutaLogica.
 (function (g) {
-  const GOOGLE = /^(www\.|maps\.)?google\.(com|[a-z]{2}|com\.[a-z]{2}|co\.[a-z]{2})$/;
+  // solo dominios de Google de verdad (no cualquier "google.com.xx" que podría registrar otro)
+  const TLD = new Set(['com', 'com.ar', 'cl', 'com.uy', 'com.py', 'com.bo', 'com.pe', 'com.br', 'com.mx', 'es', 'co', 'com.co', 'com.ec', 'co.ve', 'us', 'co.uk', 'fr', 'it', 'de']);
+  const esGoogle = (h) => { const m = h.match(/^(?:www\.|maps\.)?google\.(.+)$/); return !!m && TLD.has(m[1]); };
 
   /** Devuelve el link de Google Maps (normalizado) que haya en el texto, o null. Acepta el texto completo que copia Maps al compartir. */
   function linkMaps(texto) {
@@ -11,7 +13,7 @@
     const h = u.hostname.toLowerCase();
     const ok = h === 'maps.app.goo.gl'
       || (h === 'goo.gl' && u.pathname.startsWith('/maps'))
-      || (GOOGLE.test(h) && (h.startsWith('maps.') || u.pathname.startsWith('/maps')));
+      || (esGoogle(h) && (h.startsWith('maps.') || u.pathname.startsWith('/maps')));
     return ok ? u.href : null;
   }
 
@@ -20,13 +22,20 @@
   const clave = (p) => (typeof p.orden === 'number' ? p.orden : typeof p.creado === 'number' ? p.creado : 0);
   const ordenar = (ps) => [...ps].sort((a, b) => clave(a) - clave(b));
 
-  /** Intercambio de orden con la vecina (dir -1 = subir, 1 = bajar): [{id, orden}, {id, orden}] o null si está en el borde. */
+  /** Cambios de orden para subir (dir -1) o bajar (1) una parada: [{id, orden, movida?}] o null si está en el borde.
+   *  Normalmente intercambia con la vecina; si hay órdenes repetidos (datos viejos, cambios cruzados) renumera toda la lista. */
   function mover(ps, id, dir) {
     const l = ordenar(ps), i = l.findIndex((p) => p.id === id), j = i + dir;
     if (i < 0 || j < 0 || j >= l.length) return null;
-    return [{ id: l[i].id, orden: clave(l[j]) }, { id: l[j].id, orden: clave(l[i]) }];
+    const claves = l.map(clave);
+    if (new Set(claves).size === claves.length) return [{ id: l[i].id, orden: claves[j], movida: true }, { id: l[j].id, orden: claves[i] }];
+    [l[i], l[j]] = [l[j], l[i]];
+    return l.map((p, k) => ({ id: p.id, orden: (k + 1) * 1000, ...(p.id === id ? { movida: true } : {}) }));
   }
 
-  const R = { linkMaps, buscarEnMaps, ordenar, mover };
+  /** Km escritos en el celu: acepta coma decimal; vacío, negativo o inválido = 0. */
+  function km(t) { const n = Number(String(t ?? '').trim().replace(',', '.')); return Number.isFinite(n) && n > 0 ? n : 0; }
+
+  const R = { linkMaps, buscarEnMaps, ordenar, mover, km };
   if (typeof module !== 'undefined') module.exports = R; else g.RutaLogica = R;
 })(typeof window !== 'undefined' ? window : globalThis);

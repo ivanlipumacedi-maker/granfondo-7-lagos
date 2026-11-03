@@ -260,7 +260,7 @@ body { margin: 0 }
       <input id="pLugar" class="grow" maxlength="80" placeholder="Lugar (ej. YPF de Zapala)" required aria-label="Lugar">
       <input id="pLink" class="grow" inputmode="url" autocomplete="off" placeholder="Link de Google Maps (pegalo acá)" aria-label="Link de Google Maps">
       <input id="pFecha" type="date" min="2026-11-19" class="short" aria-label="Fecha (opcional)">
-      <input id="pKm" type="number" min="0" class="short" placeholder="Km (opcional)" aria-label="Kilómetros desde la parada anterior">
+      <input id="pKm" inputmode="decimal" autocomplete="off" class="short" placeholder="Km (opcional)" aria-label="Kilómetros desde la parada anterior">
       <input id="pNota" class="grow" maxlength="200" placeholder="Nota: qué hay, qué no perderse" aria-label="Nota">
       <button class="btn" id="pBoton" type="submit">Agregar parada</button>
       <button class="btn ghost" id="pCancelar" type="button" hidden>Cancelar</button>
@@ -474,6 +474,7 @@ function renderItin() {
     el.innerHTML = '<li class="empty" style="display:block">Todavía no hay paradas. Sumá la primera: la salida desde Córdoba, una estación de servicio, un mirador.</li>';
     $('kmTotal').textContent = ''; return;
   }
+  if (editandoParada && !state.paradas.some((p) => p.id === editandoParada)) { limpiarParada(true); aviso('La parada que estabas editando se borró.'); }
   let acum = 0;
   const lista = RutaLogica.ordenar(state.paradas);
   el.innerHTML = lista.map((p, i) => {
@@ -488,20 +489,21 @@ function renderItin() {
 }
 $('ruta').addEventListener('click', (e) => { const b = e.target.closest('[data-del-parada]'); if (b) armarBorrado(b, () => escribir(() => state.db.collection('paradas').doc(b.dataset.delParada).delete())); });
 let editandoParada = null;
-function limpiarParada() { editandoParada = null; ['pLugar', 'pLink', 'pFecha', 'pKm', 'pNota'].forEach((k) => ($(k).value = '')); $('pBoton').textContent = 'Agregar parada'; $('pCancelar').hidden = true; renderItin(); }
+function limpiarParada(sinPintar) { editandoParada = null; ['pLugar', 'pLink', 'pFecha', 'pKm', 'pNota'].forEach((k) => ($(k).value = '')); $('pBoton').textContent = 'Agregar parada'; $('pCancelar').hidden = true; if (!sinPintar) renderItin(); }
 $('pCancelar').addEventListener('click', limpiarParada);
 $('ruta').addEventListener('click', (e) => {
   const sub = e.target.closest('[data-subir], [data-bajar]');
   if (sub) {
     const cambios = RutaLogica.mover(state.paradas, sub.dataset.subir || sub.dataset.bajar, sub.dataset.subir ? -1 : 1);
-    if (cambios) escribir(() => Promise.all(cambios.map((c) => state.db.collection('paradas').doc(c.id).update({ orden: c.orden }))));
+    // solo se cambia el orden (en el servidor), así no se pisa lo que el otro editó; la que se movió lleva la marca para el aviso
+    if (cambios) escribir(() => Promise.all(cambios.map((c) => state.db.collection('paradas').doc(c.id).merge(c.movida ? { orden: c.orden, movida: Date.now() } : { orden: c.orden }).catch((e) => { if (e.code !== 'borrada') throw e; }))));
     return;
   }
   const ed = e.target.closest('[data-editar]');
   if (ed) {
     const p = state.paradas.find((x) => x.id === ed.dataset.editar); if (!p) return;
     editandoParada = p.id;
-    $('pLugar').value = p.lugar || ''; $('pLink').value = p.link || ''; $('pFecha').value = p.fecha || ''; $('pKm').value = p.km || ''; $('pNota').value = p.nota || '';
+    $('pLugar').value = p.lugar || ''; $('pLink').value = RutaLogica.linkMaps(p.link) || ''; /* un link viejo inválido no traba la edición */ $('pFecha').value = p.fecha || ''; $('pKm').value = p.km || ''; $('pNota').value = p.nota || '';
     $('pBoton').textContent = 'Guardar cambios'; $('pCancelar').hidden = false; renderItin();
     $('fParada').scrollIntoView({ block: 'center', behavior: 'smooth' }); $('pLugar').focus({ preventScroll: true });
   }
@@ -510,11 +512,12 @@ $('fParada').addEventListener('submit', async (e) => {
   e.preventDefault();
   const crudo = $('pLink').value.trim(), link = crudo ? RutaLogica.linkMaps(crudo) : '';
   if (crudo && !link) return aviso('Ese link no es de Google Maps. En Maps tocá Compartir ▸ Copiar vínculo y pegalo acá.');
-  const datos = { lugar: $('pLugar').value.trim(), link, fecha: $('pFecha').value, km: Number($('pKm').value) || 0, nota: $('pNota').value.trim() };
+  const datos = { lugar: $('pLugar').value.trim(), link, fecha: $('pFecha').value, km: RutaLogica.km($('pKm').value), nota: $('pNota').value.trim() };
   if (!datos.lugar) return;
   const id = editandoParada;
+  if (id && !state.paradas.some((p) => p.id === id)) { limpiarParada(); return aviso('Esa parada ya no existe: la borraron mientras la editabas.'); }
   const ok = id
-    ? await escribir(() => state.db.collection('paradas').doc(id).update(datos))
+    ? await escribir(() => state.db.collection('paradas').doc(id).merge(datos).catch((e) => { if (e.code === 'borrada') { limpiarParada(); aviso('Esa parada ya no existe: la borraron mientras la editabas.'); return; } throw e; }))
     : await escribir(() => state.db.collection('paradas').add({ ...datos, orden: Date.now(), creado: Date.now() }));
   if (ok) limpiarParada();
 });
@@ -634,8 +637,8 @@ function describirCambio(col, id, a, d) {
   if (col === 'paradas') {
     if (!d) return `sacó ${comillas(a?.lugar)} del itinerario`;
     if (!a) return `agregó ${comillas(d.lugar)} al itinerario`;
-    if (a.orden !== d.orden && a.lugar === d.lugar && a.link === d.link && a.nota === d.nota && a.km === d.km && a.fecha === d.fecha)
-      return d.orden < a.orden ? `subió ${comillas(d.lugar)} en el itinerario` : null; // un movimiento = un aviso
+    const igual = ['lugar', 'link', 'nota', 'km', 'fecha'].every((k) => (a[k] ?? '') === (d[k] ?? ''));
+    if (igual) return d.movida && d.movida !== a.movida ? `movió ${comillas(d.lugar)} en el itinerario` : null; // un movimiento = un aviso
     return `editó ${comillas(d.lugar)} en el itinerario`;
   }
   if (col === 'valija') {
@@ -718,6 +721,16 @@ function crearDb(sb, viaje) {
     canal.send({ type: 'broadcast', event: 'cambio', payload: { col } });
     avisarCambio(col, id, antes, data);
   }
+  async function mezclarFila(col, id, parche) {
+    const antes = cache[col]?.get(id);
+    const { data, error } = await sb.rpc('docs_merge', { p_col: col, p_id: id, p_patch: parche });
+    if (error) { await cargar(col); throw error; }
+    if (data == null) { await cargar(col); const e = new Error('ya no existe'); e.code = 'borrada'; throw e; } // la borró el otro
+    (cache[col] = cache[col] || new Map()).set(id, data); avisar(col);
+    canal.send({ type: 'broadcast', event: 'cambio', payload: { col } });
+    avisarCambio(col, id, antes, data);
+    return data;
+  }
   async function borrarFila(col, id) {
     const antes = cache[col]?.get(id);
     cache[col]?.delete(id); avisar(col);
@@ -734,6 +747,7 @@ function crearDb(sb, viaje) {
     onSnapshot(next, err) { if (err) onErr = err; suscribir(col, () => { const d = cache[col].get(id); next({ id, exists: !!d, data: () => d }); }); },
     set: (data) => escribirFila(col, id, data),
     update: (patch) => escribirFila(col, id, { ...(cache[col]?.get(id) || {}), ...patch }),
+    merge: (patch) => mezclarFila(col, id, patch),
     delete: () => borrarFila(col, id),
   });
   const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -825,7 +839,7 @@ function iniciarAvisos(sb, viaje) {
   db.doc('juego/misiones').onSnapshot((s) => { state.misiones = (s.exists && s.data().hechas) || {}; renderMision(); }, err);
   db.doc('juego/bingo').onSnapshot((s) => { state.bingo = (s.exists && s.data().marcas) || {}; renderBingo(); }, err);
   db.collection('extras').orderBy('creado').onSnapshot((q) => { state.extras = q.docs.map((d) => ({ id: d.id, ...d.data() })); renderExtras(); }, err);
-  db.collection('paradas').orderBy('fecha').onSnapshot((q) => { state.paradas = q.docs.map((d) => ({ id: d.id, ...d.data() })); renderItin(); }, err);
+  db.collection('paradas').orderBy('orden').onSnapshot((q) => { state.paradas = q.docs.map((d) => ({ id: d.id, ...d.data() })); renderItin(); }, err);
   db.collection('valija').orderBy('orden').onSnapshot((q) => { state.items = q.docs.map((d) => ({ id: d.id, ...d.data() })); renderValija(); }, err);
   db.collection('gastos').orderBy('creado', 'desc').onSnapshot((q) => { state.gastos = q.docs.map((d) => ({ id: d.id, ...d.data() })); renderGastos(); }, err);
   $('status').textContent = 'Sincronizado: lo que carga uno, el otro lo ve al instante.';
