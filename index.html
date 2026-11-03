@@ -8,100 +8,98 @@
 <meta property="og:description" content="Lipu y Guti · jueves 19 de noviembre">
 <title>Rumbo al Sur</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Overpass:wght@400;600;800&family=Overpass+Mono:wght@600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800;900&display=swap">
 <style>
 /* Layout: una columna angosta tipo hoja de ruta; arriba el cartel de cuenta regresiva, abajo pestañas de uso diario */
 :root {
-  --bg: #eef2f0;        /* cielo patagónico lavado */
-  --surface: #ffffff;
-  --ink: #1b2830;       /* asfalto */
-  --muted: #5d6e73;
-  --line: #d3dcda;
-  --accent: #157f80;    /* lago glaciar */
-  --accent-soft: #d6ecea;
-  --ocre: #b9791f;      /* estepa */
-  --ocre-soft: #f5e6cd;
+  --bg: #edf1f0;        /* niebla de cordillera */
+  --surface: #f8faf9;
+  --ink: #1f2a2e;       /* basalto */
+  --muted: #5e6b6f;
+  --line: #cbd5d3;
+  --accent: #0f5e6e;    /* lago Lácar */
+  --accent-soft: #d3e5e8;
+  --ocre: #b7862a;      /* lenga */
+  --ocre-soft: #f3e8cf;
+  --lupino: #7a4fb0;    /* lupinos de noviembre: solo la misión del día */
   --danger: #b03a2e;
-  --a: #157f80;
-  --b: #b9791f;
-  --evento: #1b2830;   /* en oscuro: blanco */
-  --f-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --a: #0f5e6e;
+  --b: #b7862a;
+  --evento: #1f2a2e;
+  --mojon: #ffffff;
+  --f-display: "Overpass", "Segoe UI", system-ui, sans-serif;
   --f-body: "Overpass", "Segoe UI", system-ui, sans-serif;
-  --f-num: "Overpass Mono", ui-monospace, Consolas, monospace;
+  --f-num: "Overpass", "Segoe UI", system-ui, sans-serif;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #10171b; --surface: #182227; --ink: #e5ecea; --muted: #93a4a7; --line: #2a373d;
-  --accent: #4dbdb7; --accent-soft: #1d3a3b; --ocre: #e2a54b; --ocre-soft: #3a2e1b; --danger: #e0786b;
-  --a: #4dbdb7; --b: #e2a54b; --evento: #ffffff; color-scheme: dark } }
+  --bg: #142024; --surface: #1a282d; --ink: #e6ecea; --muted: #93a3a6; --line: #2b3a3f;
+  --accent: #5fb3c2; --accent-soft: #1d3a40; --ocre: #d9a94a; --ocre-soft: #3a2e1b; --lupino: #b595e3; --danger: #e0786b;
+  --a: #5fb3c2; --b: #d9a94a; --evento: #ffffff; --mojon: #f4f6f5; color-scheme: dark } }
 :root[data-theme="dark"] {
-  --bg: #10171b; --surface: #182227; --ink: #e5ecea; --muted: #93a4a7; --line: #2a373d;
-  --accent: #4dbdb7; --accent-soft: #1d3a3b; --ocre: #e2a54b; --ocre-soft: #3a2e1b; --danger: #e0786b;
-  --a: #4dbdb7; --b: #e2a54b; --evento: #ffffff; color-scheme: dark }
+  --bg: #142024; --surface: #1a282d; --ink: #e6ecea; --muted: #93a3a6; --line: #2b3a3f;
+  --accent: #5fb3c2; --accent-soft: #1d3a40; --ocre: #d9a94a; --ocre-soft: #3a2e1b; --lupino: #b595e3; --danger: #e0786b;
+  --a: #5fb3c2; --b: #d9a94a; --evento: #ffffff; --mojon: #f4f6f5; color-scheme: dark }
 
 * { box-sizing: border-box }
-body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.5; font-variant-numeric: tabular-nums;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px }
 .wrap { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px }
-h1, h2, h3 { font-family: var(--f-display); font-weight: 900; text-transform: uppercase; letter-spacing: .02em; margin: 0; text-wrap: balance; line-height: 1 }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 900; letter-spacing: -.02em; margin: 0; text-wrap: balance; line-height: 1.1 }
 button, input, select { font: inherit; color: inherit }
 button { cursor: pointer }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
 
-/* Encabezado */
-.top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap }
-.logo { width: 150px; height: auto; flex: none; color: var(--ink) }
-.top h1 { font-size: 2.6rem }
-.top p { margin: 4px 0 0; color: var(--muted) }
-.top .evento { font-family: var(--f-display); font-weight: 700; font-size: 1.45rem; line-height: 1.05; letter-spacing: .03em; text-transform: uppercase; color: var(--evento); margin-top: 6px }
-.top .title { flex: 1; min-width: 0 }
-.who { display: flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em }
-/* Mobile: el hero se apila en una columna (en fila, .title se encogía hasta una palabra por línea) */
-@media (max-width: 768px) {
-  .top { flex-direction: column; align-items: center; text-align: center; gap: 12px }
-  .logo { width: 100%; max-width: 220px }
-  .top .title { flex: none; width: 100% }
-  .top h1 { font-size: clamp(2.5rem, 12vw, 5rem) }
-  .top .evento { font-size: clamp(1.3rem, 6.5vw, 2rem) }
-  .who { justify-content: center }
-}
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--surface) }
-.seg button { border: 0; background: none; padding: 4px 12px; border-radius: 999px; font-weight: 600; text-transform: none; letter-spacing: 0; font-size: .85rem }
-.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg) }
+/* Encabezado: alineado a la izquierda, sin mayúsculas */
+.top { display: flex; flex-direction: column; align-items: flex-start; gap: 10px }
+.logo { width: 120px; height: auto; flex: none; color: var(--ink); opacity: .85 }
+.top h1 { font-size: 2.2rem; color: var(--accent) }
+.top p { margin: 6px 0 0; color: var(--muted); max-width: 32ch; line-height: 1.4 }
+.top .evento { display: none }
+.top .title { min-width: 0 }
+.who { display: flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--muted) }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--surface) }
+.seg button { border: 0; background: none; padding: 6px 14px; border-radius: 999px; font-weight: 600; font-size: .9rem; color: var(--muted) }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff }
 
-/* Cuenta regresiva */
-.count { background: var(--ink); color: var(--bg); border-radius: 14px; padding: 20px 18px 18px; display: flex; flex-direction: column; gap: 16px }
-.count .eyebrow { font-size: .75rem; letter-spacing: .14em; text-transform: uppercase; opacity: .75 }
-.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px }
-.tile { background: color-mix(in oklab, var(--bg) 10%, transparent); border: 1px solid color-mix(in oklab, var(--bg) 18%, transparent); border-radius: 8px; padding: 10px 4px 8px; text-align: center }
-.tile b { display: block; font-family: var(--f-num); font-size: clamp(1.8rem, 9vw, 3rem); line-height: 1; font-variant-numeric: tabular-nums }
-.tile span { font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; opacity: .75 }
-.road { position: relative; height: 34px }
-.road .asphalt { position: absolute; left: 0; right: 0; top: 13px; height: 8px; border-radius: 4px; background: color-mix(in oklab, var(--bg) 22%, transparent);
-  background-image: repeating-linear-gradient(90deg, transparent 0 10px, color-mix(in oklab, var(--bg) 55%, transparent) 10px 18px); background-size: 100% 2px; background-repeat: repeat-x; background-position: 0 3px }
-.road .done { position: absolute; left: 0; top: 13px; height: 8px; border-radius: 4px; background: var(--ocre) }
-.road .car { position: absolute; top: -3px; transform: translateX(-50%); line-height: 0; transition: left .6s }
-.road .car svg { display: block; filter: drop-shadow(0 1px 1px rgb(0 0 0 / .25)) }
-.road .flag { position: absolute; right: -4px; top: 2px; font-size: 20px }
-.roadlbl { display: flex; justify-content: space-between; font-size: .75rem; opacity: .75 }
+/* Cuenta regresiva: un mojón kilométrico parado sobre la ruta de la espera */
+.count { display: flex; flex-direction: column; gap: 4px }
+.count .eyebrow { display: none }
+.ruta-espera { position: relative; margin: 6px -16px 0 }
+.ruta-espera svg { display: block; width: 100%; height: auto; overflow: visible }
+.hito { position: absolute; left: var(--x, 30%); top: 8px; transform: translateX(-50%); width: 128px; color: #1f2a2e; text-align: center;
+  background: linear-gradient(#1f2a2e 0 14px, var(--mojon) 14px); border-radius: 64px 64px 6px 6px; padding: 30px 10px 12px;
+  box-shadow: 0 1px 0 #c9d1cf, 0 10px 24px -14px rgba(15, 94, 110, .55); animation: clavar .7s cubic-bezier(.2, .9, .3, 1.2) both .15s }
+.hito::after { content: ""; position: absolute; left: 50%; bottom: -34px; width: 14px; height: 34px; transform: translateX(-50%); background: linear-gradient(var(--mojon) 50%, #1f2a2e 50%) }
+.hito b { display: block; font-weight: 900; font-size: 64px; line-height: .9; letter-spacing: -.04em }
+.hito span { font-size: .9rem; font-weight: 600; color: #4a575b }
+@keyframes clavar { from { transform: translate(-50%, -40px); opacity: 0 } to { transform: translate(-50%, 0); opacity: 1 } }
+.reloj { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 6px }
+.reloj span { color: var(--muted); font-size: .95rem }
+.reloj b { font-weight: 800; font-size: 1.15rem }
+.roadlbl { display: flex; justify-content: space-between; font-size: .82rem; color: var(--muted) }
+.roadlbl b { color: var(--ink); font-weight: 600 }
+@media (prefers-reduced-motion: reduce) { .hito { animation: none } }
 
-/* Misión del día */
-.mision { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: start }
-.mojon { grid-row: span 3; width: 46px; border: 2px solid var(--ink); border-radius: 10px 10px 3px 3px; text-align: center; padding: 6px 0 4px; font-family: var(--f-num); line-height: 1.05; background: var(--surface) }
-.mojon small { display: block; font-size: .6rem; letter-spacing: .1em; color: var(--muted) }
-.mojon b { font-size: 1.25rem }
-.mision h2 { font-size: 1.05rem; letter-spacing: .1em; color: var(--muted); font-weight: 700 }
-.mision p { margin: 0; font-size: 1.1rem; font-weight: 600; min-width: 0 }
-.mision .acts { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 8px }
-.btn { border: 1px solid var(--ink); background: var(--ink); color: var(--bg); border-radius: 8px; padding: 7px 14px; font-weight: 600 }
-.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line) }
+/* Misión del día: placa violeta con el número de día */
+.mision { display: grid; grid-template-columns: auto 1fr; gap: 2px 14px; align-items: start }
+.mojon { grid-row: span 3; min-width: 58px; background: var(--lupino); color: #fff; border-radius: 10px; text-align: center; padding: 8px 10px 6px; line-height: 1.05 }
+.mojon small { display: block; font-size: .75rem; font-weight: 600; opacity: .9 }
+.mojon b { display: block; font-size: 1.9rem; font-weight: 900 }
+.mision h2 { font-size: .95rem; letter-spacing: 0; color: var(--muted); font-weight: 600 }
+.mision p { margin: 0; font-size: 1.3rem; font-weight: 800; line-height: 1.25; letter-spacing: -.01em; min-width: 0 }
+.mision .acts { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px }
+.mision .acts .btn { background: none; color: var(--lupino); border: 2px solid var(--lupino); border-radius: 999px; padding: 6px 16px; font-weight: 800 }
+.btn { border: 0; background: var(--accent); color: #fff; border-radius: 10px; padding: 9px 16px; font-weight: 800 }
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line) }
 .btn:disabled { opacity: .45; cursor: not-allowed }
 .link { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px }
 .done-tag { color: var(--accent); font-weight: 600 }
 .lista-misiones { grid-column: 1 / -1; margin: 10px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px }
 .lista-misiones li { display: grid; grid-template-columns: 74px 1fr auto; gap: 8px; font-size: .9rem; align-items: baseline }
-.lista-misiones .d { font-family: var(--f-num); color: var(--muted); font-size: .8rem }
+.lista-misiones .d { color: var(--muted); font-size: .8rem }
 .lista-misiones .future { opacity: .45 }
-.extras { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 10px }
+.extras { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px }
+.extras h2 { font-size: .95rem; color: var(--muted); font-weight: 600 }
 .extra { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; padding: 4px 0 }
 .extra .t { min-width: 0; overflow-wrap: anywhere; font-weight: 600 }
 .extra .t .hint { font-weight: 400; font-size: .8rem }
@@ -111,74 +109,80 @@ button { cursor: pointer }
 .extras .form { padding: 8px; margin-top: 4px }
 
 /* Pestañas */
-.tabs { display: flex; flex-wrap: wrap; gap: 0 4px; border-bottom: 2px solid var(--line) }
-.tabs button { border: 0; background: none; padding: 10px 12px 8px; font-family: var(--f-display); font-weight: 700; font-size: 1.1rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap }
-.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent) }
+.tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); margin: 0 -16px; padding: 0 16px }
+.tabs::-webkit-scrollbar { display: none }
+.tabs button { border: 0; background: none; padding: 10px 8px 12px; font-family: var(--f-body); font-weight: 600; font-size: 1rem; white-space: nowrap; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1px }
+.tabs button[aria-selected="true"] { color: var(--ink); font-weight: 800; border-bottom-color: var(--accent) }
 .panel { display: flex; flex-direction: column; gap: 14px }
-.panel h3 { font-size: 1.5rem }
+.panel h3 { font-size: 1.6rem }
 .hint { color: var(--muted); margin: 0; font-size: .9rem }
-.avisos { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; margin-top: 12px; font-size: .9rem; color: var(--muted) }
+.avisos { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; font-size: .9rem; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px }
 .avisos .hint { font-size: .85rem }
 .notice { background: var(--ocre-soft); border-radius: 10px; padding: 10px 14px; font-size: .9rem }
 
 /* Formularios */
-.form { display: flex; flex-wrap: wrap; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px }
-.form input, .form select { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 8px 10px; min-width: 0; flex: 1 1 140px }
+.form { display: flex; flex-wrap: wrap; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px }
+.form input, .form select { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 10px 12px; min-width: 0; flex: 1 1 140px; font-size: 16px }
 .form .grow { flex: 3 1 220px }
 .form .short { flex: 0 1 120px }
 .form .btn { flex: 0 0 auto }
-label.f { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; flex: 1 1 180px }
-label.f input { text-transform: none; letter-spacing: 0; font-size: .95rem; color: var(--ink) }
+label.f { display: flex; flex-direction: column; gap: 4px; font-size: .88rem; font-weight: 600; color: var(--muted); flex: 1 1 180px }
+label.f input { font-size: 16px; font-weight: 400; color: var(--ink) }
 
-/* Itinerario */
+/* Itinerario: ruta vertical punteada */
 .ruta { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; position: relative }
-.ruta li { display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--line); align-items: start }
-.ruta .km { border: 2px solid var(--ink); border-radius: 9px 9px 3px 3px; text-align: center; font-family: var(--f-num); font-size: .62rem; line-height: 1.1; padding: 4px 0 3px; color: var(--muted) }
-.ruta .km b { display: block; color: var(--ink); font-size: .95rem }
-.ruta .lugar { font-weight: 800; font-size: 1.05rem }
+.ruta::before { content: ""; position: absolute; left: 9px; top: 14px; bottom: 14px; border-left: 3px dashed var(--ocre) }
+.ruta:has(.empty)::before { display: none }
+.ruta li { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 0 0 20px 36px; align-items: start }
+.ruta li::before { content: ""; position: absolute; left: 1px; top: 4px; width: 19px; height: 19px; border-radius: 50%; background: var(--bg); border: 3px solid var(--accent) }
+.ruta li:last-child::before { background: var(--accent) }
+.ruta li.empty { padding: 18px }
+.ruta li.empty::before { display: none }
 .ruta .meta { color: var(--muted); font-size: .85rem }
-.ruta .nota { font-size: .92rem; margin-top: 2px }
+.ruta .lugar { font-weight: 800; font-size: 1.15rem; line-height: 1.2 }
+.ruta .nota { font-size: .92rem; margin-top: 2px; color: var(--muted) }
+.ruta .km { display: inline-block; margin-top: 6px; font-size: .82rem; font-weight: 800; color: var(--ocre) }
 .x { border: 0; background: none; color: var(--muted); font-size: .85rem; padding: 4px 6px; border-radius: 6px }
 .x.armed { background: var(--danger); color: #fff }
 
 /* Valija */
 .prog { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
-.prog div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px }
-.prog .n { font-family: var(--f-num); font-size: 1.4rem }
+.prog > div { font-size: .9rem; color: var(--muted) }
+.prog .n { font-size: 1.7rem; font-weight: 900; color: var(--ink); line-height: 1.1 }
 .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-top: 6px }
 .bar i { display: block; height: 100% }
 .cat { display: flex; flex-direction: column; gap: 2px }
-.cat h4 { margin: 8px 0 4px; font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted) }
-.item { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line) }
-.item input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent) }
+.cat h4 { margin: 14px 0 2px; font-size: .95rem; font-weight: 800; color: var(--muted) }
+.item { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line) }
+.item .t { font-weight: 600 }
+.item input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--accent) }
 .item .t { min-width: 0; overflow-wrap: anywhere }
-.item.ok .t { text-decoration: line-through; color: var(--muted) }
-.chip { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: .78rem; font-weight: 600; background: var(--surface); white-space: nowrap }
-.chip.A { border-color: var(--a); color: var(--a) }
-.chip.B { border-color: var(--b); color: var(--b) }
+.item.ok .t { text-decoration: line-through; color: var(--muted); font-weight: 400 }
+.chip { border: 0; border-radius: 999px; padding: 4px 10px; font-size: .8rem; font-weight: 800; background: color-mix(in srgb, var(--muted) 16%, transparent); color: var(--muted); white-space: nowrap }
+.chip.A { background: color-mix(in srgb, var(--a) 16%, transparent); color: var(--a) }
+.chip.B { background: color-mix(in srgb, var(--b) 18%, transparent); color: var(--b) }
 
 /* Bingo */
 .bingo { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px }
 .cell { aspect-ratio: 1; max-width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 4px; font-size: clamp(.58rem, 2.4vw, .8rem); line-height: 1.15; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 2px; overflow: hidden }
 .cell .e { font-size: clamp(1rem, 5vw, 1.5rem) }
-.cell.A { background: var(--accent-soft); border-color: var(--a) }
-.cell.B { background: var(--ocre-soft); border-color: var(--b) }
+.cell.A { background: var(--a); border-color: var(--a); color: #fff }
+.cell.B { background: var(--b); border-color: var(--b); color: #fff }
 .cell .por { font-weight: 800; font-size: .9em }
-.cell.A .por { color: var(--a) } .cell.B .por { color: var(--b) }
-.cell.free { background: var(--ink); color: var(--bg); border-color: var(--ink) }
-.score { display: flex; gap: 16px; flex-wrap: wrap; font-weight: 600 }
+.cell.A .por, .cell.B .por { color: #fff }
+.cell.free { background: var(--lupino); color: #fff; border-color: var(--lupino); font-weight: 800 }
+.score { display: flex; gap: 16px; flex-wrap: wrap; font-weight: 800; align-items: baseline }
 .score .A { color: var(--a) } .score .B { color: var(--b) }
 
 /* Gastos */
-.saldo { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px }
-.saldo .big { font-family: var(--f-display); font-weight: 900; font-size: 1.7rem; line-height: 1.05; text-transform: uppercase }
+.saldo { padding: 4px 0 14px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px }
+.saldo .big { font-weight: 900; font-size: 1.7rem; line-height: 1.15; letter-spacing: -.02em }
 .gasto { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line) }
-.gasto .m { font-family: var(--f-num); font-variant-numeric: tabular-nums }
+.gasto .m { font-weight: 800 }
 .gasto .meta { color: var(--muted); font-size: .82rem }
 
 .empty { border: 1px dashed var(--line); border-radius: 12px; padding: 18px; color: var(--muted); text-align: center }
 .status { font-size: .8rem; color: var(--muted); text-align: center }
-@media (prefers-reduced-motion: reduce) { .road .car { transition: none } }
 [hidden] { display: none !important }
 img { max-width: 100% }
 :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px) }
@@ -200,20 +204,22 @@ body { margin: 0 }
 
   <section class="count" aria-label="Cuenta regresiva">
     <div class="eyebrow" id="countLbl">Faltan para arrancar</div>
-    <div class="tiles">
-      <div class="tile"><b id="cd-d">--</b><span>días</span></div>
-      <div class="tile"><b id="cd-h">--</b><span>horas</span></div>
-      <div class="tile"><b id="cd-m">--</b><span>min</span></div>
-      <div class="tile"><b id="cd-s">--</b><span>seg</span></div>
+    <div class="ruta-espera">
+      <div class="hito" id="car"><b id="cd-d">--</b><span id="cd-u">días</span></div>
+      <svg viewBox="0 0 440 240" aria-hidden="true">
+        <path id="camino" d="M 20 200 C 110 196, 150 188, 210 186 S 330 172, 372 150 S 404 120, 420 112" fill="none" stroke="var(--line)" stroke-width="7" stroke-linecap="round"/>
+        <path id="roadDone" d="M 20 200 C 110 196, 150 188, 210 186 S 330 172, 372 150 S 404 120, 420 112" fill="none" stroke="var(--ocre)" stroke-width="7" stroke-linecap="round"/>
+        <path d="M 352 132 L 376 96 L 392 116 L 408 84 L 432 124" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linejoin="round" opacity=".55"/>
+        <g fill="var(--accent)" opacity=".85"><ellipse cx="398" cy="140" rx="9" ry="4"/><ellipse cx="414" cy="132" rx="6" ry="3"/><ellipse cx="386" cy="152" rx="7" ry="3"/><ellipse cx="426" cy="146" rx="5" ry="2.5"/><ellipse cx="406" cy="154" rx="5" ry="2.5"/><ellipse cx="420" cy="120" rx="4" ry="2"/><ellipse cx="392" cy="128" rx="4" ry="2"/></g>
+        <circle cx="20" cy="200" r="7" fill="var(--bg)" stroke="var(--accent)" stroke-width="3"/>
+      </svg>
     </div>
-    <div>
-      <div class="road" aria-hidden="true"><div class="asphalt"></div><div class="done" id="roadDone"></div><div class="car" id="car"><svg viewBox="0 0 64 30" width="46" height="22" role="img" aria-label="Renault Kardian blanca con techo negro"><path d="M3 22V15.5Q3 12.2 6.5 11.6L14.5 10.8L20.5 5Q21.6 4 23.2 4H42Q44.2 4 45.8 5.4L51.8 10.4L59.4 11.8Q62.5 12.6 62.5 16V22Z" fill="#f4f6f6" stroke="#1b2830" stroke-width=".9"/><path d="M20.5 5Q21.6 4 23.2 4H42Q44.2 4 45.8 5.4L46.6 6.2H19.3Z" fill="#151a1c"/><path d="M17.2 10.9L21.9 6.6H31.3V10.9ZM32.7 10.9V6.6H41.3Q42.9 6.6 44 7.6L47.6 10.9Z" fill="#22343c"/><path d="M3 19.2H62.5V22H3Z" fill="#151a1c"/><rect x="56.6" y="12.9" width="5.2" height="1.5" rx=".7" fill="#ffe9a6"/><rect x="3.3" y="13" width="3" height="1.8" rx=".6" fill="#d2453a"/><path d="M30 14.6H33" stroke="#9aa3a6" stroke-width=".9" stroke-linecap="round"/><circle cx="15" cy="22.5" r="5.6" fill="#151a1c"/><circle cx="15" cy="22.5" r="2.7" fill="#a7b0b3"/><circle cx="50.5" cy="22.5" r="5.6" fill="#151a1c"/><circle cx="50.5" cy="22.5" r="2.7" fill="#a7b0b3"/></svg></div><div class="flag">🏔️</div></div>
-      <div class="roadlbl"><span>29 oct · arrancó la espera</span><span id="pct"></span></div>
-    </div>
+    <div class="reloj"><span id="cdSalida">Salimos el jueves 19 a las 7</span><b><span id="cd-h">--</span>:<span id="cd-m">--</span>:<span id="cd-s">--</span></b></div>
+    <div class="roadlbl"><span>Empezó la espera el 29 oct</span><span id="pct"></span></div>
   </section>
 
   <section class="mision" aria-label="Misión del día">
-    <div class="mojon"><small>DÍA</small><b id="mDia">1</b><small>DE 21</small></div>
+    <div class="mojon"><small>día</small><b id="mDia">1</b><small>de 21</small></div>
     <h2>Misión de hoy</h2>
     <p id="mTxt"></p>
     <div class="acts"><span id="mAct"></span><button class="link" id="verTodas" type="button">Ver las 21</button></div>
@@ -338,19 +344,22 @@ function tick() {
   if (ms <= 0) {
     const dia = Math.floor((now - t) / 864e5) + 1;
     $('countLbl').textContent = dia <= 21 ? `¡En ruta! Día ${dia} del viaje` : 'Viaje cumplido';
-    ['d', 'h', 'm', 's'].forEach((k) => ($('cd-' + k).textContent = '00'));
+    ['h', 'm', 's'].forEach((k) => ($('cd-' + k).textContent = '00'));
+    $('cd-d').textContent = Math.min(dia, 21); $('cd-u').textContent = dia <= 21 ? 'día de viaje' : 'días';
     ms = 0;
   } else {
-    const s = Math.floor(ms / 1000);
-    $('cd-d').textContent = pad(Math.floor(s / 86400));
+    const s = Math.floor(ms / 1000), d = Math.floor(s / 86400);
+    $('cd-d').textContent = d; $('cd-u').textContent = d === 1 ? 'día' : 'días';
     $('cd-h').textContent = pad(Math.floor(s / 3600) % 24);
     $('cd-m').textContent = pad(Math.floor(s / 60) % 60);
     $('cd-s').textContent = pad(s % 60);
   }
   const pct = Math.min(100, Math.max(0, ((now - START) / (t - START)) * 100));
-  $('roadDone').style.width = pct + '%';
-  $('car').style.left = `calc(${pct}% * .94 + 3%)`;
-  $('pct').textContent = `${pct.toFixed(1)}% de la espera`;
+  const camino = $('camino'), largo = camino.getTotalLength();
+  $('roadDone').style.strokeDasharray = largo; $('roadDone').style.strokeDashoffset = largo * (1 - pct / 100);
+  const x = camino.getPointAtLength(largo * pct / 100).x / 440;
+  $('car').style.setProperty('--x', Math.min(Math.max(x, 0.18), 0.82) * 100 + '%');
+  $('pct').innerHTML = `<b>${Math.round(pct)} %</b> del camino`;
 }
 
 /* ---------- Misiones: una por día, del 29/10 al 18/11 ---------- */
@@ -386,7 +395,7 @@ function renderMision() {
   const hecha = state.misiones[i];
   $('mAct').innerHTML = hecha
     ? `<span class="done-tag">✓ Cumplida por ${esc(n[hecha] || hecha)}</span> <button class="link" type="button" data-mis="${i}">Deshacer</button>`
-    : `<button class="btn" type="button" data-mis="${i}" ${state.puedeEscribir ? '' : 'disabled'}>Misión cumplida</button>`;
+    : `<button class="btn" type="button" data-mis="${i}" ${state.puedeEscribir ? '' : 'disabled'}>La cumplimos</button>`;
   $('todas').innerHTML = MISIONES.map((m, k) => {
     const h = state.misiones[k];
     return `<li class="${k > i ? 'future' : ''}"><span class="d">${fechaMision(k)}</span><span>${esc(m)}</span><span>${h ? '✓' : ''}</span></li>`;
@@ -420,7 +429,8 @@ $('verTodas').onclick = () => { const t = $('todas'); t.hidden = !t.hidden; $('v
 function renderHeader() {
   const n = nombres(), t = target();
   const hora = t.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Argentina/Buenos_Aires' });
-  $('sub').textContent = `${n.A} y ${n.B} · jueves 19 de noviembre, ${hora} hs` + (state.cfg.destino ? ` · destino ${state.cfg.destino}` : '');
+  $('sub').textContent = `${n.A} y ${n.B}, de Córdoba a ${state.cfg.destino || 'San Martín de los Andes'} para el Gran Fondo 7 Lagos.`;
+  $('cdSalida').textContent = `Salimos el jueves 19 a las ${hora}`;
   $('soy').innerHTML = ['A', 'B'].map((k) => `<button type="button" data-soy="${k}" aria-pressed="${yo === k}">${esc(n[k])}</button>`).join('');
   const opts = (sel) => ['A', 'B', 'AB'].map((k) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${k === 'AB' ? 'Cualquiera' : esc(n[k])}</option>`).join('');
   $('iQuien').innerHTML = opts('AB');
@@ -457,9 +467,9 @@ function renderItin() {
   el.innerHTML = state.paradas.map((p) => {
     acum += Number(p.km) || 0;
     const f = new Date(p.fecha + 'T12:00:00-03:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'America/Argentina/Buenos_Aires' });
-    return `<li><div class="km">KM<b>${acum}</b></div><div><div class="lugar">${esc(p.lugar)}</div><div class="meta">${esc(f)}${p.km ? ` · ${esc(p.km)} km de tramo` : ''}</div>${p.nota ? `<div class="nota">${esc(p.nota)}</div>` : ''}</div><button class="x" type="button" data-del-parada="${esc(p.id)}" aria-label="Borrar parada">✕</button></li>`;
+    return `<li><div><div class="meta">${esc(f)}</div><div class="lugar">${esc(p.lugar)}</div>${p.nota ? `<div class="nota">${esc(p.nota)}</div>` : ''}${p.km ? `<span class="km">${esc(p.km)} km de tramo · ${acum.toLocaleString('es-AR')} km en total</span>` : ''}</div><button class="x" type="button" data-del-parada="${esc(p.id)}" aria-label="Borrar parada">✕</button></li>`;
   }).join('');
-  $('kmTotal').textContent = `Total cargado: ${acum.toLocaleString('es-AR')} km.`;
+  $('kmTotal').textContent = `En total: ${acum.toLocaleString('es-AR')} km de ruta.`;
 }
 $('ruta').addEventListener('click', (e) => { const b = e.target.closest('[data-del-parada]'); if (b) armarBorrado(b, () => escribir(() => state.db.collection('paradas').doc(b.dataset.delParada).delete())); });
 $('fParada').addEventListener('submit', async (e) => {
