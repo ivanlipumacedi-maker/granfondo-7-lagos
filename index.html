@@ -232,6 +232,7 @@ body { margin: 0 }
 
   <nav class="tabs" role="tablist" id="tabs">
     <button role="tab" data-t="itin" type="button">Itinerario</button>
+    <button role="tab" data-t="album" type="button">Álbum</button>
     <button role="tab" data-t="valija" type="button">Qué llevamos</button>
     <button role="tab" data-t="bingo" type="button">Bingo de ruta</button>
     <button role="tab" data-t="gastos" type="button">Cuentas claras</button>
@@ -250,6 +251,11 @@ body { margin: 0 }
     </form>
     <ol class="ruta" id="ruta"></ol>
     <p class="hint" id="kmTotal"></p>
+  </section>
+
+  <section class="panel" data-p="album" hidden>
+    <h3>Álbum</h3>
+    <div id="album"><p class="hint">Para ver el álbum abrí el link completo que te pasaron por WhatsApp.</p></div>
   </section>
 
   <section class="panel" data-p="valija" hidden>
@@ -303,6 +309,11 @@ body { margin: 0 }
 <script src="chat-logica.js"></script>
 <script src="chat-medios.js"></script>
 <script src="chat.js"></script>
+<script src="album-logica.js"></script>
+<script src="album-cola.js"></script>
+<script src="camara.js"></script>
+<script src="editor.js"></script>
+<script src="album.js"></script>
 <script>
 const START = new Date('2026-10-29T00:00:00-03:00');
 const TRIP_DATE = '2026-11-19';
@@ -748,6 +759,7 @@ function iniciarAvisos(sb, viaje) {
   state.db = db; state.puedeEscribir = true;
   iniciarAvisos(sb, viaje);
   if (window.iniciarChat) iniciarChat({ sb, canal: db.canal, viaje, yo: () => yo, nombres, db });
+  if (window.iniciarAlbum) iniciarAlbum({ sb, canal: db.canal, viaje, yo: () => yo, nombres });
   const err = () => { $('status').textContent = 'Se cortó la conexión. Recargá la página.'; };
   db.doc('config/main').onSnapshot((s) => { state.cfg = s.exists ? s.data() : {}; renderAll(); }, err);
   db.doc('juego/misiones').onSnapshot((s) => { state.misiones = (s.exists && s.data().hechas) || {}; renderMision(); }, err);

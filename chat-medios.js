@@ -30,12 +30,12 @@
   const vigente = (p) => (cache.get(p)?.vence ?? 0) - Date.now() > MARGEN_MS;
   const puedeFirmar = (p) => !!p && !rotas.has(p) && Date.now() >= esperarHasta;
   const reintentarYa = () => { esperarHasta = 0; };
-  async function firmar(sb, paths) {
+  async function firmar(sb, paths, bucket = BUCKET) {
     const faltan = [...new Set(paths)].filter((p) => p && !vigente(p) && !rotas.has(p));
     if (faltan.length) {
       if (Date.now() < esperarHasta) throw new Error('esperando para reintentar firmas');
       let res;
-      try { res = await sb.storage.from(BUCKET).createSignedUrls(faltan, VIDA_S); }
+      try { res = await sb.storage.from(bucket).createSignedUrls(faltan, VIDA_S); }
       catch (e) { esperarHasta = Date.now() + BACKOFF_MS; throw e; }
       if (res.error) { esperarHasta = Date.now() + BACKOFF_MS; throw res.error; }
       const ahora = Date.now();
@@ -129,5 +129,5 @@
     };
   }
 
-  window.ChatMedios = { BUCKET, comprimirImagen, firmar, firmada, vigente, puedeFirmar, reintentarYa, rutaMini, recortarCuadrado, hacerSticker, pintarSticker, buscarGiphy, grabadora };
+  window.ChatMedios = { BUCKET, aBlob, comprimirImagen, firmar, firmada, vigente, puedeFirmar, reintentarYa, rutaMini, recortarCuadrado, hacerSticker, pintarSticker, buscarGiphy, grabadora };
 })();

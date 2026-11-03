@@ -36,6 +36,10 @@
 #chatForm { display: flex; align-items: flex-end; gap: 8px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--surface); border-top: 1px solid var(--line) }
 #chatTexto { flex: 1; resize: none; border: 1px solid var(--line); border-radius: 20px; padding: 9px 14px; background: var(--bg); color: var(--ink); font: inherit; max-height: 130px; line-height: 1.3 }
 .adj { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-size: 1.3rem; cursor: pointer; flex: none; background: var(--bg); border: 1px solid var(--line) }
+#chatFotoHoja { position: absolute; left: 10px; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); z-index: 3; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 6px; display: flex; flex-direction: column; box-shadow: 0 8px 24px rgba(0,0,0,.25) }
+#chatFotoHoja[hidden] { display: none }
+#chatFotoHoja button, #chatFotoHoja label { font: inherit; text-align: left; background: none; border: 0; color: var(--ink); padding: 11px 14px; border-radius: 10px; cursor: pointer; font-weight: 600 }
+#chatFotoHoja button:active, #chatFotoHoja label:active { background: var(--line) }
 .burbuja.media { padding: 3px 3px 4px }
 .burbuja.media .hora { padding: 0 6px }
 img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max-height: 320px; object-fit: cover; background: var(--line); cursor: zoom-in }
@@ -137,11 +141,12 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
   <header><button type="button" id="chatCerrar" aria-label="Volver">←</button><div class="av" aria-hidden="true"></div><b class="nom"></b></header>
   <div id="chatLista"></div>
   <form id="chatForm" autocomplete="off">
-    <label class="adj" for="chatFoto" aria-label="Mandar foto">📷</label><button type="button" class="adj" id="chatStickersBtn" aria-label="Stickers">😀</button><input type="file" id="chatFoto" accept="image/*" hidden>
+    <button type="button" class="adj" id="chatFotoBtn" aria-label="Mandar foto" aria-expanded="false">📷</button><button type="button" class="adj" id="chatStickersBtn" aria-label="Stickers">😀</button><input type="file" id="chatFoto" accept="image/*" hidden>
     <textarea id="chatTexto" rows="1" enterkeyhint="enter" maxlength="${L.MAX_TEXTO}" placeholder="Mensaje" aria-label="Mensaje"></textarea>
     <button type="submit" id="chatEnviar" aria-label="Grabar audio">🎤</button>
     <div id="chatGrabando" hidden><span class="rec"></span><span class="t">0:00</span><span class="cancelar">◀ deslizá para cancelar</span></div>
   </form>
+  <div id="chatFotoHoja" hidden role="menu"><button type="button" id="chatFotoCamara" role="menuitem">📷 Abrir cámara</button><label for="chatFoto" role="menuitem">🖼️ Elegir de la galería</label></div>
   <div id="chatVisor" hidden role="dialog" aria-label="Foto"><img alt=""></div>
   <div id="chatStickers" hidden role="dialog" aria-label="Stickers">
     <div class="tabs2" role="tablist"><button type="button" data-stab="nuestros" aria-selected="true">Nuestros</button><button type="button" data-stab="giphy" aria-selected="false">GIPHY</button>
@@ -474,7 +479,14 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
         window.aviso?.('No se pudo mandar la foto. Revisá la conexión y probá de nuevo.');
       } finally { URL.revokeObjectURL(tmp.local); }
     }
-    $('chatFoto').addEventListener('change', (e) => { const f = e.target.files?.[0]; e.target.value = ''; enviarFoto(f); });
+    $('chatFoto').addEventListener('change', (e) => { const f = e.target.files?.[0]; e.target.value = ''; hojaFoto(false); enviarFoto(f); });
+    window.chatEnviarFoto = enviarFoto;
+    // 📷: cámara del álbum (si está) o la galería
+    function hojaFoto(abrir) { $('chatFotoHoja').hidden = !abrir; $('chatFotoBtn').setAttribute('aria-expanded', String(abrir)); }
+    $('chatFotoBtn').addEventListener('click', () => { if (!window.abrirCamara) return $('chatFoto').click(); hojaFoto($('chatFotoHoja').hidden); });
+    $('chatFotoCamara').addEventListener('click', () => { hojaFoto(false); window.abrirCamara?.({ alChat: true }); });
+    $('chatFotoHoja').querySelector('label').addEventListener('click', () => setTimeout(() => hojaFoto(false), 0));
+    document.addEventListener('pointerdown', (e) => { if (!$('chatFotoHoja').hidden && !e.target.closest('#chatFotoHoja, #chatFotoBtn')) hojaFoto(false); });
 
     /* ---------- stickers: selector (Nuestros / GIPHY) y editor ---------- */
     let stickers = [], editando = false;
