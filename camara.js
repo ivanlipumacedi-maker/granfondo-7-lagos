@@ -47,8 +47,11 @@
       const m = A.escala(bm.width, bm.height, 480), cm = document.createElement('canvas'); cm.width = m.ancho; cm.height = m.alto;
       cm.getContext('2d').drawImage(bm, 0, 0, m.ancho, m.alto);
       const mini = await M.aBlob(cm, 0.75);
-      if (!foto || !mini) throw new Error('no se pudo codificar la foto');
-      return { foto, mini, ancho, alto };
+      const md = A.escala(bm.width, bm.height, 1600), cmd = document.createElement('canvas'); cmd.width = md.ancho; cmd.height = md.alto;
+      cmd.getContext('2d').drawImage(bm, 0, 0, md.ancho, md.alto);
+      const media = await new Promise((res) => cmd.toBlob(res, 'image/jpeg', 0.82));
+      if (!foto || !mini || !media) throw new Error('no se pudo codificar la foto');
+      return { foto, mini, media, ancho, alto };
     } finally { bm.close?.(); }
   }
 
@@ -211,7 +214,7 @@
         ultima = { id, foto: p.foto };
         const u = q('ultima'); u.innerHTML = `<img alt="Última foto"><span hidden></span>`; const url = URL.createObjectURL(p.mini); u.querySelector('img').src = url; u.querySelector('img').onload = () => URL.revokeObjectURL(url);
         q('alchat').hidden = !(alChat && mandarAlChat); pendientes(nPend);
-        await cola.agregar({ id, foto: p.foto, mini: p.mini, ancho: p.ancho, alto: p.alto, autor: yo(), tomada: new Date().toISOString() });
+        await cola.agregar({ id, foto: p.foto, mini: p.mini, media: p.media, ancho: p.ancho, alto: p.alto, autor: yo(), tomada: new Date().toISOString() });
       } catch (e) {
         console.error(e); window.aviso?.('No se pudo guardar la foto. Probá de nuevo.');
       } finally { ocupado = false; raiz.querySelector('.cuenta').hidden = true; }

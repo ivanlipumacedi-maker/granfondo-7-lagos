@@ -34,7 +34,9 @@
       if (r.error) throw r.error;
       r = await sb.storage.from(BUCKET).upload(mini, it.mini, { contentType: it.mini.type || 'image/webp', upsert: true });
       if (r.error) throw r.error;
-      const fila = { id: it.id, viaje, autor: it.autor, archivo, mini, ancho: it.ancho, alto: it.alto, bytes: it.foto.size + it.mini.size, tomada: it.tomada, editada_de: it.editada_de || null };
+      const media = it.media ? A.rutaMedia(archivo) : null; // 1600 px: queda en la app aunque la original se libere a Drive
+      if (media) { r = await sb.storage.from(BUCKET).upload(media, it.media, { contentType: 'image/jpeg', upsert: true }); if (r.error) throw r.error; }
+      const fila = { id: it.id, viaje, autor: it.autor, archivo, mini, media, ancho: it.ancho, alto: it.alto, bytes: it.foto.size + it.mini.size + (it.media?.size || 0), tomada: it.tomada, editada_de: it.editada_de || null };
       const ins = await sb.from('fotos').insert(fila).select('*').single();
       if (ins.error && ins.error.code !== '23505') throw ins.error; // 23505: ya estaba, la subida anterior llegó
       return ins.data || fila;
@@ -54,19 +56,19 @@
           if (uso.error) throw uso.error;
           items.sort((a, b) => (a.tomada < b.tomada ? -1 : 1));
           for (const it of items) {
-            if (A.espacio(Number(uso.data) + it.foto.size + it.mini.size, A.LIMITE_BYTES).estado === 'lleno') { estado({ estado: 'lleno' }); return; }
+            if (A.espacio(Number(uso.data) + it.foto.size + it.mini.size + (it.media?.size || 0), A.LIMITE_BYTES).estado === 'lleno') { estado({ estado: 'lleno' }); return; }
             estado({ estado: 'subiendo' });
             let fila;
             try { fila = await subirUna(it); }
             catch (e) {
               if (!esPermanente(e)) throw e;
               console.error('album: foto descartada', e);
-              const ruta = A.rutaFoto(viaje, it.id); sb.storage.from(BUCKET).remove([ruta, A.rutaMini(ruta)]).catch(() => {});
+              const ruta = A.rutaFoto(viaje, it.id); sb.storage.from(BUCKET).remove([ruta, A.rutaMini(ruta), A.rutaMedia(ruta)]).catch(() => {});
               await op('readwrite', (s) => s.delete(it.id)); await contar();
               estado({ estado: 'descartada' });
               continue;
             }
-            uso.data = Number(uso.data) + it.foto.size + it.mini.size;
+            uso.data = Number(uso.data) + it.foto.size + it.mini.size + (it.media?.size || 0);
             await op('readwrite', (s) => s.delete(it.id));
             await contar(); intento = 0;
             try { alSubir(fila); } catch (x) { console.error(x); }

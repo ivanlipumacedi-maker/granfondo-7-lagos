@@ -59,7 +59,7 @@
       const e = A.espacio(uso, A.LIMITE_BYTES), el = $('albumEstado');
       el.className = e.estado;
       const mb = (uso / 1048576).toFixed(0);
-      let t = `${fotos.length} foto${fotos.length === 1 ? '' : 's'} · ${e.pct} % del espacio (${mb} MB de 1 GB)`;
+      let t = `${fotos.length} foto${fotos.length === 1 ? '' : 's'} · espacio en la app: ${mb} MB de 1 GB · todas se copian a Google Drive`;
       if (pend) t += estadoCola === 'sin-senal' ? ` · ${pend} esperando señal` : ` · subiendo ${pend}`;
       if (e.estado === 'aviso') t += ' · queda poco espacio';
       if (e.estado === 'lleno' || estadoCola === 'lleno') t = `Se llenó el espacio del álbum (${e.pct} %). Borren fotos que no quieran para seguir subiendo.` + (pend ? ` Hay ${pend} esperando.` : '');
@@ -144,7 +144,7 @@
       for (const f of files) {
         try {
           const p = await window.Camara.preparar(f);
-          await cola.agregar({ id: crypto.randomUUID(), foto: p.foto, mini: p.mini, ancho: p.ancho, alto: p.alto, autor: yo(), tomada: new Date(f.lastModified || Date.now()).toISOString() });
+          await cola.agregar({ id: crypto.randomUUID(), foto: p.foto, mini: p.mini, media: p.media, ancho: p.ancho, alto: p.alto, autor: yo(), tomada: new Date(f.lastModified || Date.now()).toISOString() });
         } catch (x) { console.error(x); malas++; }
       }
       if (malas) window.aviso?.(malas === 1 ? 'Una foto no se pudo leer.' : `${malas} fotos no se pudieron leer.`);
@@ -161,7 +161,16 @@
       const mini = M.firmada(f.mini); img.src = mini || '';
       const borrar = $('albumBorrar'); borrar.hidden = f.autor !== yo(); borrar.classList.remove('armed'); borrar.textContent = 'Borrar';
       $('albumAlChat').hidden = !window.chatEnviarFoto;
-      M.firmar(sb, [f.archivo], 'album').then(() => { if (actual?.id === f.id) { const u = M.firmada(f.archivo); if (u) { img.src = u; $('albumGuardar').href = u; } } }).catch(() => {});
+      const opciones = [A.verFoto(f), f.media, f.mini].filter((x, i, xs) => x && xs.indexOf(x) === i);
+      (async () => {
+        for (const ruta of opciones) {
+          try { await M.firmar(sb, [ruta], 'album'); } catch {}
+          const u = M.firmada(ruta); if (!u || actual?.id !== f.id) continue;
+          const ok = await new Promise((res) => { const p = new Image(); p.onload = () => res(true); p.onerror = () => res(false); p.src = u; });
+          if (actual?.id !== f.id) return;
+          if (ok) { img.src = u; $('albumGuardar').href = u; return; } // si la original ya no está (liberada a Drive), sigue con la media
+        }
+      })();
     }
     function abrirVisor(id) {
       const f = fotos.find((x) => x.id === id); if (!f) return;
@@ -206,11 +215,14 @@
     };
     marco.addEventListener('pointerup', soltar); marco.addEventListener('pointercancel', soltar);
 
+    // la mejor versión que haya en la app: la original, o la media si la original ya se liberó (está en Drive)
     async function blobDe(f) {
-      await M.firmar(sb, [f.archivo], 'album');
-      const u = M.firmada(f.archivo); if (!u) throw new Error('sin URL');
-      const r = await fetch(u); if (!r.ok) throw new Error('descarga ' + r.status);
-      return r.blob();
+      for (const ruta of [A.verFoto(f), f.media].filter((x, i, xs) => x && xs.indexOf(x) === i)) {
+        try { await M.firmar(sb, [ruta], 'album'); } catch {}
+        const u = M.firmada(ruta); if (!u) continue;
+        const r = await fetch(u); if (r.ok) return r.blob();
+      }
+      throw new Error('sin la foto');
     }
     $('albumGuardar').addEventListener('click', async (e) => {
       e.preventDefault(); if (!actual) return;
@@ -234,7 +246,7 @@
         window.EditorFoto.abrir(b, {
           alGuardar: async (editada) => {
             const p = await window.Camara.preparar(editada);
-            await cola.agregar({ id: crypto.randomUUID(), foto: p.foto, mini: p.mini, ancho: p.ancho, alto: p.alto, autor: yo(), tomada: new Date().toISOString(), editada_de: f.id });
+            await cola.agregar({ id: crypto.randomUUID(), foto: p.foto, mini: p.mini, media: p.media, ancho: p.ancho, alto: p.alto, autor: yo(), tomada: new Date().toISOString(), editada_de: f.id });
           },
         });
       } catch (x) { console.error(x); window.aviso?.('No se pudo abrir la foto para editar. Revisá la señal.'); }
@@ -248,8 +260,8 @@
       try {
         const r = await sb.from('fotos').delete().eq('id', f.id).select('id');
         if (r.error || !r.data?.length) { console.error(r.error); return window.aviso?.('No se pudo borrar. Probá de nuevo.'); }
-        let rm = await sb.storage.from('album').remove([f.archivo, f.mini]);
-        if (rm.error) rm = await sb.storage.from('album').remove([f.archivo, f.mini]); // un reintento: si no, el archivo ocupa lugar
+        let rm = await sb.storage.from('album').remove([f.archivo, f.mini, f.media].filter(Boolean));
+        if (rm.error) rm = await sb.storage.from('album').remove([f.archivo, f.mini, f.media].filter(Boolean)); // un reintento: si no, el archivo ocupa lugar
         if (rm.error) console.error('álbum: no se pudo borrar el archivo', rm.error);
       } finally { borrando = false; }
       fotos = A.quitar(fotos, f.id); pintar(); refrescarUso().then(() => cola.procesar());
