@@ -39,7 +39,7 @@
 .msg.mio { align-self: flex-end; align-items: flex-end }
 .msg.otro { align-self: flex-start; align-items: flex-start }
 .burbuja { padding: 7px 11px 5px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); user-select: none; -webkit-user-select: none;
-  -webkit-touch-callout: none; touch-action: pan-y } /* pan-y: el gesto horizontal (deslizar para responder) llega a la página */
+  -webkit-touch-callout: none; touch-action: pan-y pinch-zoom } /* el gesto horizontal (deslizar para responder) llega a la página; el zoom con dos dedos sigue */
 .msg.mio .burbuja { color: var(--bg); border: 0 }
 .msg.mio.A .burbuja { background: var(--a) } .msg.mio.B .burbuja { background: var(--b) }
 .msg.mio .burbuja { border-bottom-right-radius: 5px } .msg.otro .burbuja { border-bottom-left-radius: 5px }
@@ -136,6 +136,8 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     const CAMPOS = 'id,autor,tipo,texto,reacciones,creado,archivo,ancho,alto,duracion_ms,externo,responde_a';
     const M = window.ChatMedios, medios = new Map(); // id → nodo de foto/audio, se reusa entre redibujos
     let presionLargaHasta = 0; // el click que sigue a una presión larga no abre el visor
+    let desliz = null; // deslizar para responder (se declara acá: pintarLista lo cancela al redibujar)
+    function soltarDesliz() { if (desliz) { desliz.b.style.transform = ''; desliz = null; } }
     let lista = [], hayMas = false, selId = null, timer = null, enviando = false;
     const TAM = 50, tactil = matchMedia('(pointer: coarse)').matches;
     const sinHash = () => location.pathname + location.search;
@@ -198,11 +200,12 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     function pintarLista() {
       const cont = $('chatLista');
       const alFondo = cont.scrollHeight - cont.scrollTop - cont.clientHeight < 120;
+      soltarDesliz(); // un redibujo en medio de un deslizamiento lo cancela limpio
       cont.replaceChildren();
       if (hayMas) { const b = document.createElement('button'); b.type = 'button'; b.id = 'chatMas'; b.className = 'link'; b.textContent = 'Ver anteriores'; cont.appendChild(b); }
       if (!lista.length) { const p = document.createElement('p'); p.className = 'vacio'; p.textContent = 'Todavía no hay mensajes. ¡Mandá el primero! 🚗'; cont.appendChild(p); }
       for (const m of lista) {
-        const fila = document.createElement('div'); fila.className = `msg ${m.autor === yo() ? 'mio' : 'otro'} ${m.autor}`; fila.dataset.id = m.id;
+        const fila = document.createElement('div'); fila.className = `msg ${m.autor === yo() ? 'mio' : 'otro'} ${m.autor}` + (m.id === resaltadoId && Date.now() < resaltadoHasta ? ' resaltado' : ''); fila.dataset.id = m.id;
         const bur = document.createElement('div'); bur.className = 'burbuja' + (m.id === selId ? ' sel' : ''); bur.dataset.id = m.id;
         const hora = document.createElement('span'); hora.className = 'hora'; hora.textContent = L.horaCorta(m.creado);
         if (m.responde_a) bur.appendChild(nodoCita(m.responde_a));
@@ -224,26 +227,30 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     const pintar = () => { pintarCabeceras(); if (abierto()) pintarLista(); };
 
     /* ---------- responder citando ---------- */
-    let citando = null; const citados = new Map(); let buscandoCitas = false; // citados: id → mensaje (o null si ya no existe)
+    let citando = null; const citados = new Map(); let buscandoCitas = false, citasEsperaHasta = 0; // citados: id → mensaje (o null si ya no existe)
+    let resaltadoId = null, resaltadoHasta = 0;
     function originalDe(id) { return lista.find((x) => x.id === id) || citados.get(id); }
     function nodoCita(id) {
       const o = originalDe(id), c = document.createElement('button'); c.type = 'button'; c.className = 'cita' + (o ? ' ' + o.autor : ''); c.dataset.cita = id;
       const b = document.createElement('b'); b.textContent = o ? (o.autor === yo() ? 'Vos' : nombres()[o.autor] || '') : '';
       const sp = document.createElement('span'); sp.textContent = o === undefined ? '…' : L.textoCita(o);
       c.append(b, sp);
-      if (o === undefined) buscarCitas();
+      if (o === undefined && Date.now() >= citasEsperaHasta) buscarCitas();
       return c;
     }
     async function buscarCitas() {
-      if (buscandoCitas) return;
+      if (buscandoCitas || Date.now() < citasEsperaHasta) return;
       const ids = L.citasFaltantes(lista, citados); if (!ids.length) return;
       buscandoCitas = true;
       try {
-        const { data, error } = await sb.from('mensajes').select('id,autor,tipo,texto').in('id', ids);
+        const { data, error } = await sb.from('mensajes').select('id,autor,tipo,texto,creado').in('id', ids);
         if (error) throw error;
         for (const id of ids) citados.set(id, (data || []).find((x) => x.id === id) || null);
-      } catch (e) { console.warn('citas en espera', e.message); }
-      finally { buscandoCitas = false; }
+      } catch (e) {
+        console.warn('citas en espera', e.message);
+        citasEsperaHasta = Date.now() + 30000; // se reintenta en 30 s, o antes si vuelve la señal o la app
+        return;
+      } finally { buscandoCitas = false; }
       if (abierto()) pintarLista();
     }
     function responder(id) {
@@ -255,15 +262,31 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     }
     function quitarCita() { citando = null; $('chatCita').hidden = true; }
     // al mandar: se usa la cita actual y se limpia solo si salió bien
-    const usarCita = () => citando;
-    const citaUsada = (id) => { if (citando === id) quitarCita(); };
+    // al mandar: se toma la cita y la barra se va enseguida (lo siguiente que escriba no hereda la cita)
+    const usarCita = () => { const c = citando; quitarCita(); return c; };
+    const devolverCita = (c) => { if (c && !citando && originalDe(c)) responder(c); };
+    const citaUsada = () => {};
+    /** insert de un mensaje; si la cita fue rechazada (el original ya no existe), sale sin cita y avisa */
+    async function insertarMensaje(fila) {
+      let r = await sb.from('mensajes').insert(fila).select(CAMPOS).single();
+      if (r.error && fila.responde_a && ['23514', '22P02'].includes(r.error.code)) {
+        citados.set(fila.responde_a, null);
+        window.aviso?.('El mensaje que citabas se borró: se mandó sin la cita.');
+        r = await sb.from('mensajes').insert({ ...fila, responde_a: null }).select(CAMPOS).single();
+      }
+      return r;
+    }
     $('chatCitaQuitar').addEventListener('click', quitarCita);
-    function irAlOriginal(id) {
+    async function irAlOriginal(id) {
+      if (citados.get(id) === null) return window.aviso?.('Ese mensaje se borró.');
+      // si es más viejo que lo cargado, se traen páginas hasta llegar (con tope)
+      for (let i = 0; i < 20 && !lista.some((x) => x.id === id) && hayMas; i++) await cargar(lista[0]?.creado);
       const fila = [...$('chatLista').querySelectorAll('.msg')].find((x) => x.dataset.id === id); // (acá CSS es la hoja de estilos del chat, no window.CSS)
-      if (!fila) return window.aviso?.(citados.get(id) === null ? 'Ese mensaje se borró.' : 'Ese mensaje es más viejo: tocá "Ver anteriores" para llegar.');
+      if (!fila) return window.aviso?.('No encontré ese mensaje.');
+      resaltadoId = id; resaltadoHasta = Date.now() + 1700;
       fila.scrollIntoView({ block: 'center', behavior: 'smooth' });
       fila.classList.remove('resaltado'); void fila.offsetWidth; fila.classList.add('resaltado');
-      setTimeout(() => fila.classList.remove('resaltado'), 1700);
+      setTimeout(() => { if (resaltadoId === id && Date.now() >= resaltadoHasta) document.querySelectorAll('#chatLista .msg.resaltado').forEach((x) => x.classList.remove('resaltado')); }, 1750);
     }
 
     /* ---------- foto de perfil: doc perfil/<A|B> = { foto: path|null, v } ---------- */
@@ -371,7 +394,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       if (!M.vigente(ruta)) pedirFirma(ruta);
     }
     // volver a tener señal o volver a la app: se reintenta lo que quedó esperando
-    const reintentar = () => { M.reintentarYa(); pintar(); };
+    const reintentar = () => { M.reintentarYa(); citasEsperaHasta = 0; pintar(); };
     window.addEventListener('online', reintentar);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) reintentar(); });
     // borrados remotos o reconciliados: se corta el audio y se suelta el nodo
@@ -501,8 +524,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
         const archivo = L.rutaArchivo(viaje, 'audio', crypto.randomUUID());
         const up = await sb.storage.from(M.BUCKET).upload(archivo, blob, { contentType: blob.type || 'audio/webm' });
         if (up.error) throw up.error;
-        const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), tipo: 'audio', archivo, duracion_ms: ms, responde_a: cita }).select(CAMPOS).single();
-        if (!error) citaUsada(cita);
+        const { data, error } = await insertarMensaje({ viaje, autor: yo(), tipo: 'audio', archivo, duracion_ms: ms, responde_a: cita });
         if (error) { sb.storage.from(M.BUCKET).remove([archivo]); throw error; }
         medios.delete(tmp.id);
         lista = L.fusionar(L.quitar(lista, tmp.id), data); marcarVisto(); pintar();
@@ -531,8 +553,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
         if (up.error) throw up.error;
         const upMini = await sb.storage.from(M.BUCKET).upload(archivoMini, mini.blob, { contentType: mini.tipo });
         if (upMini.error) { sb.storage.from(M.BUCKET).remove([archivo]); throw upMini.error; }
-        const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), tipo: 'foto', archivo, ancho: c.ancho, alto: c.alto, responde_a: cita }).select(CAMPOS).single();
-        if (!error) citaUsada(cita);
+        const { data, error } = await insertarMensaje({ viaje, autor: yo(), tipo: 'foto', archivo, ancho: c.ancho, alto: c.alto, responde_a: cita });
         if (error) { sb.storage.from(M.BUCKET).remove([archivo, archivoMini]); throw error; }
         medios.delete(tmp.id);
         lista = L.fusionar(L.quitar(lista, tmp.id), data); marcarVisto(); pintar();
@@ -593,8 +614,8 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     async function mandarSticker(fuente) {
       cerrarStickers();
       const cita = usarCita();
-      const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), tipo: 'sticker', ...fuente, responde_a: cita }).select(CAMPOS).single();
-      if (!error) citaUsada(cita);
+      const { data, error } = await insertarMensaje({ viaje, autor: yo(), tipo: 'sticker', ...fuente, responde_a: cita });
+      if (error) devolverCita(cita);
       if (error) { console.error(error); return window.aviso?.('No se pudo mandar el sticker. Revisá la conexión.'); }
       lista = L.fusionar(lista, data); marcarVisto(); pintar(); $('chatLista').scrollTop = $('chatLista').scrollHeight;
       avisar('nuevo', { m: data });
@@ -706,7 +727,9 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     }
     const cerrarVisor = () => { $('chatVisor').hidden = true; $('chatVisor').querySelector('img').removeAttribute('src'); };
     $('chatVisor').addEventListener('click', () => { if (history.state?.foto) history.back(); else cerrarVisor(); });
-    window.alCambiarSoyChat = pintar;
+    // la página lo llama en cada redibujo del encabezado (también al recargar la config): solo se cancela la respuesta si cambió quién soy
+    let soyAntes = yo();
+    window.alCambiarSoyChat = () => { if (yo() !== soyAntes) { soyAntes = yo(); quitarCita(); } pintar(); };
 
     /* ---------- datos ---------- */
     const avisar = (accion, payload) => canal.send({ type: 'broadcast', event: 'chat', payload: { accion, ...payload } });
@@ -723,6 +746,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
         const tieneViejos = lista.some((m) => Date.parse(m.creado) < corte);
         hayMas = data.length < TAM ? false : (tieneViejos ? hayMas : true);
         lista = L.reconciliar(lista, data, TAM); limpiarMedios();
+        if (citando && !lista.some((x) => x.id === citando) && !citados.get(citando)) quitarCita();
       }
       if (abierto()) marcarVisto();
       pintar();
@@ -744,8 +768,8 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       enviando = true; $('chatEnviar').disabled = true;
       $('chatTexto').value = ''; autoAlto(); actualizarBoton();
       const cita = usarCita();
-      const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), texto: t.trim(), responde_a: cita }).select(CAMPOS).single();
-      if (!error) citaUsada(cita);
+      const { data, error } = await insertarMensaje({ viaje, autor: yo(), texto: t.trim(), responde_a: cita });
+      if (error) devolverCita(cita);
       enviando = false; $('chatEnviar').disabled = false;
       if (error) {
         console.error(error);
@@ -791,6 +815,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       selId = id; pintarLista();
       document.querySelectorAll('#chatAcciones [data-reac]').forEach((b) => b.classList.toggle('mia', m.reacciones?.[yo()] === b.dataset.reac));
       $('chatCopiar').hidden = !m.texto;
+      $('chatResponder').hidden = id.startsWith('tmp-');
       const borrar = $('chatBorrar'); borrar.hidden = m.autor !== yo(); borrar.classList.remove('armed'); borrar.textContent = 'Borrar';
       $('chatAcciones').hidden = false;
       history.pushState({ chat: 1, acc: 1 }, '', '#chat');
@@ -800,7 +825,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     const cancelarTimer = () => { clearTimeout(timer); timer = null; };
     $('chatLista').addEventListener('pointerdown', (e) => {
       const b = e.target.closest('.burbuja'); if (!b) return;
-      cancelarTimer(); timer = setTimeout(() => { timer = null; presionLargaHasta = Date.now() + 700; navigator.vibrate?.(15); abrirAcciones(b.dataset.id); }, 500);
+      cancelarTimer(); timer = setTimeout(() => { timer = null; if (desliz) desliz.menu = true; /* se abrió el menú: ya no es un deslizamiento */ presionLargaHasta = Date.now() + 700; navigator.vibrate?.(15); abrirAcciones(b.dataset.id); }, 500);
     });
     ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => $('chatLista').addEventListener(ev, cancelarTimer));
     $('chatLista').addEventListener('scroll', cancelarTimer, { passive: true });
@@ -814,7 +839,6 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     $('chatCancelar').addEventListener('click', cerrarAcciones);
     $('chatResponder').addEventListener('click', () => { const id = selId; cerrarAcciones(); if (id) responder(id); });
     // deslizar una burbuja a la derecha = responder (como en WhatsApp)
-    let desliz = null;
     $('chatLista').addEventListener('pointerdown', (e) => { const b = e.target.closest('.burbuja'); if (b && !b.dataset.id.startsWith('tmp-')) desliz = { b, id: b.dataset.id, x: e.clientX, y: e.clientY, dx: 0 }; });
     $('chatLista').addEventListener('pointermove', (e) => {
       if (!desliz) return;
@@ -822,13 +846,14 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       if (Math.abs(dy) > 30 && Math.abs(dy) > dx) { desliz.b.style.transform = ''; desliz = null; return; }
       if (dx > 10) { cancelarTimer(); desliz.dx = dx; desliz.b.style.transform = `translateX(${Math.min(dx, 80)}px)`; }
     });
-    const finDesliz = () => {
+    const finDesliz = (e) => {
       if (!desliz) return;
-      const { b, id, dx } = desliz; desliz = null;
+      const { b, id, dx, menu } = desliz; desliz = null;
       b.style.transition = 'transform .15s'; b.style.transform = ''; setTimeout(() => { b.style.transition = ''; }, 160);
-      if (dx > 60) { presionLargaHasta = Date.now() + 400; navigator.vibrate?.(10); responder(id); }
+      // solo un dedo que se levanta confirma (no un gesto cancelado, como el atrás de Android), y no si ya se abrió el menú
+      if (e.type === 'pointerup' && dx > 60 && !menu && $('chatAcciones').hidden) { presionLargaHasta = Date.now() + 400; navigator.vibrate?.(10); responder(id); }
     };
-    ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => $('chatLista').addEventListener(ev, finDesliz));
+    window.addEventListener('pointerup', finDesliz); $('chatLista').addEventListener('pointercancel', finDesliz); // salirse del borde no corta el gesto: cuenta dónde se levanta el dedo
     $('chatCopiar').addEventListener('click', () => { const m = lista.find((x) => x.id === selId); cerrarAcciones(); if (m?.texto) navigator.clipboard?.writeText(m.texto).catch(() => {}); });
     $('chatAcciones').addEventListener('click', async (e) => {
       const b = e.target.closest('[data-reac]'); if (!b || !selId) return;
