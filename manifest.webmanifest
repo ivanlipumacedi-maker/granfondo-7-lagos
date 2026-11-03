@@ -1,0 +1,17 @@
+{
+  "name": "Rumbo al Sur",
+  "short_name": "Rumbo al Sur",
+  "description": "El viaje de Lipu y Guti al Gran Fondo 7 Lagos: cuenta regresiva, chat, álbum, hoja de ruta y más.",
+  "lang": "es-AR",
+  "start_url": "./?app=1",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#edf1f0",
+  "theme_color": "#0f5e6e",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
