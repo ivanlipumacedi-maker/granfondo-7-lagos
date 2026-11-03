@@ -22,10 +22,24 @@
 #chatLista .vacio { margin: auto; color: var(--muted); text-align: center; padding: 20px }
 #chatMas { align-self: center; margin-bottom: 6px }
 .msg { display: flex; flex-direction: column; max-width: 80% }
+.msg.resaltado .burbuja { animation: resaltar 1.6s ease-out }
+@keyframes resaltar { 0%, 40% { box-shadow: 0 0 0 4px var(--accent) } 100% { box-shadow: 0 0 0 0 transparent } }
+.burbuja .cita { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: rgba(0,0,0,.12); border: 0; border-left: 4px solid var(--b); border-radius: 8px; padding: 4px 8px; margin: 1px 0 4px; cursor: pointer }
+.burbuja .cita.A { border-left-color: var(--a) }
+.msg.mio .burbuja .cita { border-left-color: rgba(255,255,255,.75); background: rgba(0,0,0,.16) }
+.burbuja .cita b { display: block; font-size: .78rem }
+.burbuja .cita span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: .85rem; opacity: .85; overflow-wrap: anywhere }
+.burbuja.media .cita { margin: 2px 2px 4px; width: calc(100% - 4px) }
+#chatCita { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface); border-top: 1px solid var(--line) }
+#chatCita[hidden] { display: none }
+#chatCita .t { flex: 1; min-width: 0; border-left: 4px solid var(--accent); padding-left: 8px }
+#chatCita b { display: block; font-size: .8rem; color: var(--accent) }
+#chatCita span { display: block; font-size: .88rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+#chatCita button { background: none; border: 0; color: var(--muted); font-size: 1.2rem; padding: 4px 8px }
 .msg.mio { align-self: flex-end; align-items: flex-end }
 .msg.otro { align-self: flex-start; align-items: flex-start }
 .burbuja { padding: 7px 11px 5px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); user-select: none; -webkit-user-select: none;
-  -webkit-touch-callout: none; touch-action: manipulation }
+  -webkit-touch-callout: none; touch-action: pan-y } /* pan-y: el gesto horizontal (deslizar para responder) llega a la página */
 .msg.mio .burbuja { color: var(--bg); border: 0 }
 .msg.mio.A .burbuja { background: var(--a) } .msg.mio.B .burbuja { background: var(--b) }
 .msg.mio .burbuja { border-bottom-right-radius: 5px } .msg.otro .burbuja { border-bottom-left-radius: 5px }
@@ -119,7 +133,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     const L = window.ChatLogica;
     const $ = (id) => document.getElementById(id);
     const otro = () => (yo() === 'A' ? 'B' : 'A');
-    const CAMPOS = 'id,autor,tipo,texto,reacciones,creado,archivo,ancho,alto,duracion_ms,externo';
+    const CAMPOS = 'id,autor,tipo,texto,reacciones,creado,archivo,ancho,alto,duracion_ms,externo,responde_a';
     const M = window.ChatMedios, medios = new Map(); // id → nodo de foto/audio, se reusa entre redibujos
     let presionLargaHasta = 0; // el click que sigue a una presión larga no abre el visor
     let lista = [], hayMas = false, selId = null, timer = null, enviando = false;
@@ -140,6 +154,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
 <section id="chatPanel" hidden aria-label="Chat">
   <header><button type="button" id="chatCerrar" aria-label="Volver">←</button><div class="av" aria-hidden="true"></div><b class="nom"></b></header>
   <div id="chatLista"></div>
+  <div id="chatCita" hidden><div class="t"><b></b><span></span></div><button type="button" id="chatCitaQuitar" aria-label="Cancelar respuesta">✕</button></div>
   <form id="chatForm" autocomplete="off">
     <button type="button" class="adj" id="chatFotoBtn" aria-label="Mandar foto" aria-expanded="false">📷</button><button type="button" class="adj" id="chatStickersBtn" aria-label="Stickers">😀</button><input type="file" id="chatFoto" accept="image/*" hidden>
     <textarea id="chatTexto" rows="1" enterkeyhint="enter" maxlength="${L.MAX_TEXTO}" placeholder="Mensaje" aria-label="Mensaje"></textarea>
@@ -156,7 +171,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
   </div>
   <div id="chatAcciones" hidden>
     <div class="reac">${L.REACCIONES.map((r) => `<button type="button" data-reac="${r}" aria-label="Reaccionar ${r}">${r}</button>`).join('')}</div>
-    <div class="fila"><button type="button" class="btn ghost" id="chatCopiar">Copiar</button><button type="button" class="btn ghost" id="chatBorrar" hidden>Borrar</button><button type="button" class="btn ghost" id="chatCancelar">Cancelar</button></div>
+    <div class="fila"><button type="button" class="btn ghost" id="chatResponder">Responder</button><button type="button" class="btn ghost" id="chatCopiar">Copiar</button><button type="button" class="btn ghost" id="chatBorrar" hidden>Borrar</button><button type="button" class="btn ghost" id="chatCancelar">Cancelar</button></div>
   </div>
 </section>`);
 
@@ -190,6 +205,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
         const fila = document.createElement('div'); fila.className = `msg ${m.autor === yo() ? 'mio' : 'otro'} ${m.autor}`; fila.dataset.id = m.id;
         const bur = document.createElement('div'); bur.className = 'burbuja' + (m.id === selId ? ' sel' : ''); bur.dataset.id = m.id;
         const hora = document.createElement('span'); hora.className = 'hora'; hora.textContent = L.horaCorta(m.creado);
+        if (m.responde_a) bur.appendChild(nodoCita(m.responde_a));
         if (m.tipo === 'sticker') {
           bur.classList.add('sticker', 'media'); if (m.subiendo) bur.classList.add('subiendo');
           bur.appendChild(nodoSticker(m));
@@ -206,6 +222,49 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       if (alFondo) cont.scrollTop = cont.scrollHeight;
     }
     const pintar = () => { pintarCabeceras(); if (abierto()) pintarLista(); };
+
+    /* ---------- responder citando ---------- */
+    let citando = null; const citados = new Map(); let buscandoCitas = false; // citados: id → mensaje (o null si ya no existe)
+    function originalDe(id) { return lista.find((x) => x.id === id) || citados.get(id); }
+    function nodoCita(id) {
+      const o = originalDe(id), c = document.createElement('button'); c.type = 'button'; c.className = 'cita' + (o ? ' ' + o.autor : ''); c.dataset.cita = id;
+      const b = document.createElement('b'); b.textContent = o ? (o.autor === yo() ? 'Vos' : nombres()[o.autor] || '') : '';
+      const sp = document.createElement('span'); sp.textContent = o === undefined ? '…' : L.textoCita(o);
+      c.append(b, sp);
+      if (o === undefined) buscarCitas();
+      return c;
+    }
+    async function buscarCitas() {
+      if (buscandoCitas) return;
+      const ids = L.citasFaltantes(lista, citados); if (!ids.length) return;
+      buscandoCitas = true;
+      try {
+        const { data, error } = await sb.from('mensajes').select('id,autor,tipo,texto').in('id', ids);
+        if (error) throw error;
+        for (const id of ids) citados.set(id, (data || []).find((x) => x.id === id) || null);
+      } catch (e) { console.warn('citas en espera', e.message); }
+      finally { buscandoCitas = false; }
+      if (abierto()) pintarLista();
+    }
+    function responder(id) {
+      const o = originalDe(id); if (!o) return;
+      citando = id;
+      $('chatCita').querySelector('b').textContent = 'Respondiendo a ' + (o.autor === yo() ? 'vos' : nombres()[o.autor] || '');
+      $('chatCita').querySelector('span').textContent = L.textoCita(o);
+      $('chatCita').hidden = false; $('chatTexto').focus();
+    }
+    function quitarCita() { citando = null; $('chatCita').hidden = true; }
+    // al mandar: se usa la cita actual y se limpia solo si salió bien
+    const usarCita = () => citando;
+    const citaUsada = (id) => { if (citando === id) quitarCita(); };
+    $('chatCitaQuitar').addEventListener('click', quitarCita);
+    function irAlOriginal(id) {
+      const fila = [...$('chatLista').querySelectorAll('.msg')].find((x) => x.dataset.id === id); // (acá CSS es la hoja de estilos del chat, no window.CSS)
+      if (!fila) return window.aviso?.(citados.get(id) === null ? 'Ese mensaje se borró.' : 'Ese mensaje es más viejo: tocá "Ver anteriores" para llegar.');
+      fila.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      fila.classList.remove('resaltado'); void fila.offsetWidth; fila.classList.add('resaltado');
+      setTimeout(() => fila.classList.remove('resaltado'), 1700);
+    }
 
     /* ---------- foto de perfil: doc perfil/<A|B> = { foto: path|null, v } ---------- */
     const perfiles = { A: null, B: null };
@@ -435,13 +494,15 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     $('chatEnviar').addEventListener('pointercancel', cancelarGrabacion); // cortina, llamada entrante, gesto del sistema
     document.addEventListener('visibilitychange', () => { if (document.hidden && (rec || reloj)) cancelarGrabacion(); });
     async function enviarAudio(blob, ms) {
-      const tmp = { id: 'tmp-a' + Date.now(), autor: yo(), tipo: 'audio', creado: new Date().toISOString(), reacciones: {}, subiendo: true, duracion_ms: ms, local: URL.createObjectURL(blob) };
+      const cita = usarCita();
+      const tmp = { id: 'tmp-a' + Date.now(), autor: yo(), tipo: 'audio', creado: new Date().toISOString(), reacciones: {}, subiendo: true, duracion_ms: ms, local: URL.createObjectURL(blob), responde_a: cita };
       lista = L.fusionar(lista, tmp); pintar(); $('chatLista').scrollTop = $('chatLista').scrollHeight;
       try {
         const archivo = L.rutaArchivo(viaje, 'audio', crypto.randomUUID());
         const up = await sb.storage.from(M.BUCKET).upload(archivo, blob, { contentType: blob.type || 'audio/webm' });
         if (up.error) throw up.error;
-        const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), tipo: 'audio', archivo, duracion_ms: ms }).select(CAMPOS).single();
+        const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), tipo: 'audio', archivo, duracion_ms: ms, responde_a: cita }).select(CAMPOS).single();
+        if (!error) citaUsada(cita);
         if (error) { sb.storage.from(M.BUCKET).remove([archivo]); throw error; }
         medios.delete(tmp.id);
         lista = L.fusionar(L.quitar(lista, tmp.id), data); marcarVisto(); pintar();
@@ -454,7 +515,8 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
 
     async function enviarFoto(file) {
       if (!file) return;
-      const tmp = { id: 'tmp-' + Date.now(), autor: yo(), tipo: 'foto', creado: new Date().toISOString(), reacciones: {}, subiendo: true, local: URL.createObjectURL(file), ancho: 4, alto: 3 };
+      const cita = usarCita();
+      const tmp = { id: 'tmp-' + Date.now(), autor: yo(), tipo: 'foto', creado: new Date().toISOString(), reacciones: {}, subiendo: true, local: URL.createObjectURL(file), ancho: 4, alto: 3, responde_a: cita };
       lista = L.fusionar(lista, tmp); pintar(); $('chatLista').scrollTop = $('chatLista').scrollHeight;
       let c, mini;
       try { c = await M.comprimirImagen(file, 1600, 0.8); mini = await M.comprimirImagen(file, 480, 0.7); }
@@ -469,7 +531,8 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
         if (up.error) throw up.error;
         const upMini = await sb.storage.from(M.BUCKET).upload(archivoMini, mini.blob, { contentType: mini.tipo });
         if (upMini.error) { sb.storage.from(M.BUCKET).remove([archivo]); throw upMini.error; }
-        const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), tipo: 'foto', archivo, ancho: c.ancho, alto: c.alto }).select(CAMPOS).single();
+        const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), tipo: 'foto', archivo, ancho: c.ancho, alto: c.alto, responde_a: cita }).select(CAMPOS).single();
+        if (!error) citaUsada(cita);
         if (error) { sb.storage.from(M.BUCKET).remove([archivo, archivoMini]); throw error; }
         medios.delete(tmp.id);
         lista = L.fusionar(L.quitar(lista, tmp.id), data); marcarVisto(); pintar();
@@ -529,7 +592,9 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     document.querySelector('#chatStickers .tabs2').addEventListener('click', (e) => { const b = e.target.closest('[data-stab]'); if (b) mostrarTabStk(b.dataset.stab); });
     async function mandarSticker(fuente) {
       cerrarStickers();
-      const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), tipo: 'sticker', ...fuente }).select(CAMPOS).single();
+      const cita = usarCita();
+      const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), tipo: 'sticker', ...fuente, responde_a: cita }).select(CAMPOS).single();
+      if (!error) citaUsada(cita);
       if (error) { console.error(error); return window.aviso?.('No se pudo mandar el sticker. Revisá la conexión.'); }
       lista = L.fusionar(lista, data); marcarVisto(); pintar(); $('chatLista').scrollTop = $('chatLista').scrollHeight;
       avisar('nuevo', { m: data });
@@ -666,7 +731,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     canal.on('broadcast', { event: 'chat' }, ({ payload: p }) => {
       if (!p) return;
       if ((p.accion === 'nuevo' || p.accion === 'cambio') && p.m?.id) lista = L.fusionar(lista, p.m);
-      else if (p.accion === 'borrado' && p.id) { lista = L.quitar(lista, p.id); limpiarMedios(); }
+      else if (p.accion === 'borrado' && p.id) { lista = L.quitar(lista, p.id); citados.set(p.id, null); if (citando === p.id) quitarCita(); limpiarMedios(); }
       else return;
       if (abierto()) marcarVisto();
       pintar();
@@ -678,7 +743,9 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       if (enviando || !L.textoValido(t)) return;
       enviando = true; $('chatEnviar').disabled = true;
       $('chatTexto').value = ''; autoAlto(); actualizarBoton();
-      const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), texto: t.trim() }).select(CAMPOS).single();
+      const cita = usarCita();
+      const { data, error } = await sb.from('mensajes').insert({ viaje, autor: yo(), texto: t.trim(), responde_a: cita }).select(CAMPOS).single();
+      if (!error) citaUsada(cita);
       enviando = false; $('chatEnviar').disabled = false;
       if (error) {
         console.error(error);
@@ -740,10 +807,28 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     $('chatLista').addEventListener('contextmenu', (e) => { const b = e.target.closest('.burbuja'); if (b) { e.preventDefault(); cancelarTimer(); abrirAcciones(b.dataset.id); } });
     $('chatLista').addEventListener('click', (e) => {
       if (e.target.id === 'chatMas') return cargar(lista[0]?.creado);
+      const ci = e.target.closest('.cita[data-cita]'); if (ci) return irAlOriginal(ci.dataset.cita);
       const pl = e.target.closest('.audio .play'); if (pl) return tocarAudio(pl.closest('.audio'));
       const f = e.target.closest('img.foto'); if (f && Date.now() > presionLargaHasta) abrirVisor(f.dataset.id);
     });
     $('chatCancelar').addEventListener('click', cerrarAcciones);
+    $('chatResponder').addEventListener('click', () => { const id = selId; cerrarAcciones(); if (id) responder(id); });
+    // deslizar una burbuja a la derecha = responder (como en WhatsApp)
+    let desliz = null;
+    $('chatLista').addEventListener('pointerdown', (e) => { const b = e.target.closest('.burbuja'); if (b && !b.dataset.id.startsWith('tmp-')) desliz = { b, id: b.dataset.id, x: e.clientX, y: e.clientY, dx: 0 }; });
+    $('chatLista').addEventListener('pointermove', (e) => {
+      if (!desliz) return;
+      const dx = e.clientX - desliz.x, dy = e.clientY - desliz.y;
+      if (Math.abs(dy) > 30 && Math.abs(dy) > dx) { desliz.b.style.transform = ''; desliz = null; return; }
+      if (dx > 10) { cancelarTimer(); desliz.dx = dx; desliz.b.style.transform = `translateX(${Math.min(dx, 80)}px)`; }
+    });
+    const finDesliz = () => {
+      if (!desliz) return;
+      const { b, id, dx } = desliz; desliz = null;
+      b.style.transition = 'transform .15s'; b.style.transform = ''; setTimeout(() => { b.style.transition = ''; }, 160);
+      if (dx > 60) { presionLargaHasta = Date.now() + 400; navigator.vibrate?.(10); responder(id); }
+    };
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => $('chatLista').addEventListener(ev, finDesliz));
     $('chatCopiar').addEventListener('click', () => { const m = lista.find((x) => x.id === selId); cerrarAcciones(); if (m?.texto) navigator.clipboard?.writeText(m.texto).catch(() => {}); });
     $('chatAcciones').addEventListener('click', async (e) => {
       const b = e.target.closest('[data-reac]'); if (!b || !selId) return;
@@ -762,7 +847,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       if (error) { console.error(error); window.aviso?.('No se pudo borrar. Probá de nuevo.'); return; }
       const borrado = lista.find((x) => x.id === id);
       medios.get(id)?.querySelector?.('audio')?.pause();
-      lista = L.quitar(lista, id); medios.delete(id); pintar(); avisar('borrado', { id });
+      lista = L.quitar(lista, id); citados.set(id, null); if (citando === id) quitarCita(); medios.delete(id); pintar(); avisar('borrado', { id });
       if (borrado?.archivo && borrado.tipo !== 'sticker') sb.storage.from(M.BUCKET).remove(borrado.tipo === 'foto' ? [borrado.archivo, M.rutaMini(borrado.archivo)] : [borrado.archivo]).then(({ error }) => { if (error) console.error(error); });
     });
 

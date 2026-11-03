@@ -13,6 +13,14 @@
     return t.length > 80 ? t.slice(0, 79) + '…' : t;
   }
 
+  // responder citando
+  const textoCita = (original) => (original ? resumen(original) : 'Mensaje borrado');
+  /** ids citados que no están en la lista ni se buscaron ya (citados: Map id → mensaje|null) */
+  function citasFaltantes(lista, citados) {
+    const hay = new Set(lista.map((m) => m.id));
+    return [...new Set(lista.map((m) => m.responde_a).filter((id) => id && !hay.has(id) && !citados.has(id)))];
+  }
+
   const porFecha = (a, b) => Date.parse(a.creado) - Date.parse(b.creado);
   const fusionar = (lista, m) => [...lista.filter((x) => x.id !== m.id), m].sort(porFecha);
   const quitar = (lista, id) => lista.filter((x) => x.id !== id);
@@ -56,7 +64,7 @@
     return i < palabras.length ? [primera, palabras.slice(i).join(' ')] : [primera];
   }
 
-  const L = { REACCIONES, MAX_TEXTO, textoValido, resumen, fusionar, quitar, noLeidos, alternarReaccion, horaCorta, ultimoCreado, reconciliar,
+  const L = { REACCIONES, MAX_TEXTO, textoValido, resumen, textoCita, citasFaltantes, fusionar, quitar, noLeidos, alternarReaccion, horaCorta, ultimoCreado, reconciliar,
     escalar, duracionTexto, rutaArchivo, AUDIO_MIN_MS, AUDIO_MAX_MS, audioValido, textoSticker, externoValido, lineasSticker };
   if (typeof module !== 'undefined' && module.exports) module.exports = L; else g.ChatLogica = L;
 })(this);
