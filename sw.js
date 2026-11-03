@@ -24,6 +24,7 @@ self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
   e.waitUntil((async () => {
+    if (d.tipo === 'chat') await marcarEntregado().catch(() => {});
     // Si tenés la app abierta en pantalla, el cambio ya lo ves en vivo: no hace falta avisar.
     if (d.tipo === 'cambio' || d.tipo === 'chat') {
       const ventanas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
@@ -41,6 +42,16 @@ self.addEventListener('push', (e) => {
     });
   })());
 });
+
+async function marcarEntregado() {
+  const r = await (await caches.open('rumbo-config')).match('./__chat'); if (!r) return;
+  const { viaje, quien, url, key } = await r.json(); if (!viaje || !quien || !url || !key) return;
+  const h = { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' };
+  const res = await fetch(url + '/rest/v1/rpc/chat_marcar', { method: 'POST', headers: { ...h, 'x-viaje': viaje }, body: JSON.stringify({ p_quien: quien, p_entregado: new Date().toISOString(), p_leido: null, p_visto: false }) });
+  if (!res.ok) return;
+  const fila = await res.json();
+  await fetch(url + '/realtime/v1/api/broadcast', { method: 'POST', headers: h, body: JSON.stringify({ messages: [{ topic: 'viaje-' + viaje, event: 'chat', payload: { accion: 'estado', fila } }] }) });
+}
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();

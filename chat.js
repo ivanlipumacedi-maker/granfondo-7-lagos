@@ -44,7 +44,38 @@
 .msg.mio.A .burbuja { background: var(--a) } .msg.mio.B .burbuja { background: var(--b) }
 .msg.mio .burbuja { border-bottom-right-radius: 5px } .msg.otro .burbuja { border-bottom-left-radius: 5px }
 .burbuja .txt { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .97rem; line-height: 1.35 }
-.burbuja .hora { display: block; text-align: right; font-size: .68rem; opacity: .7; margin-top: 2px }
+.burbuja .hora { display: block; text-align: right; font-size: .68rem; opacity: .7; margin-top: 2px; white-space: nowrap }
+.burbuja .hora .tilde { margin-left: 3px; font-weight: 800; letter-spacing: -3px; display: inline-block; padding-right: 3px }
+.burbuja .hora .tilde.t-leido { color: #6bff9a; text-shadow: 0 0 2px rgba(0,0,0,.45); opacity: 1 }
+.msg.mio .burbuja .hora { opacity: .85 }
+.burbuja.eliminado .txt { font-style: italic; opacity: .7 }
+#chatPanel header .tit { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.15 }
+#chatPanel header .tit small { font-size: .78rem; color: var(--muted); min-height: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+#chatPanel header .tit small.escribe { color: var(--accent); font-weight: 700 }
+#chatPanel header button.ico { font-size: 1.15rem; padding: 6px }
+#chatFijado { display: flex; align-items: center; gap: 10px; padding: 7px 12px; background: var(--surface); border-bottom: 1px solid var(--line); cursor: pointer }
+#chatFijado[hidden], #chatBuscar[hidden], #chatDestacados[hidden], #chatAjustes[hidden] { display: none }
+#chatAjustes { position: absolute; left: 0; right: 0; top: var(--cab, 62px); bottom: 0; z-index: 4; background: var(--bg); display: flex; flex-direction: column }
+#chatAjustes .barra { display: flex; gap: 8px; align-items: center; padding: 8px 10px; background: var(--surface); border-bottom: 1px solid var(--line) }
+#chatAjustes .barra b { flex: 1 } #chatAjustes .barra button { background: none; border: 0; color: var(--ink); font-size: 1.2rem; padding: 4px 8px }
+#chatAjustes .op { display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; border-bottom: 1px solid var(--line); cursor: pointer }
+#chatAjustes .op input { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--accent); flex: none }
+#chatAjustes .op b { display: block; font-size: .98rem } #chatAjustes .op small { display: block; color: var(--muted); font-size: .85rem; margin-top: 2px }
+#chatAjustes .nota { color: var(--muted); font-size: .85rem; padding: 14px 16px; margin: 0 }
+#chatFijado div { flex: 1; min-width: 0 } #chatFijado b { display: block; font-size: .75rem; color: var(--accent) }
+#chatFijado .t { display: block; font-size: .88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+#chatFijado button { background: none; border: 0; color: var(--muted); font-size: 1.1rem; padding: 4px 6px }
+#chatBuscar, #chatDestacados { position: absolute; left: 0; right: 0; top: var(--cab, 62px); bottom: 0; z-index: 4; background: var(--bg); display: flex; flex-direction: column }
+#chatBuscar .barra, #chatDestacados .barra { display: flex; gap: 8px; align-items: center; padding: 8px 10px; background: var(--surface); border-bottom: 1px solid var(--line) }
+#chatBuscar input { flex: 1; font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 20px; border: 1px solid var(--line); background: var(--bg); color: var(--ink) }
+#chatBuscar .barra button, #chatDestacados .barra button { background: none; border: 0; color: var(--ink); font-size: 1.2rem; padding: 4px 8px }
+#chatDestacados .barra b { flex: 1 }
+.res { flex: 1; overflow-y: auto; padding: 4px 0 }
+.res button { display: block; width: 100%; text-align: left; font: inherit; color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--line); padding: 10px 14px }
+.res button small { display: block; color: var(--muted); font-size: .78rem }
+.res button mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: inherit; border-radius: 3px }
+.res p { color: var(--muted); padding: 16px; margin: 0 }
+#chatAcciones .fila { flex-wrap: wrap }
 .burbuja.sel { outline: 2px solid var(--accent); outline-offset: 2px }
 .reacs { margin-top: -4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 0 6px; font-size: .85rem; position: relative; z-index: 1 }
 #chatForm { display: flex; align-items: flex-end; gap: 8px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--surface); border-top: 1px solid var(--line) }
@@ -154,7 +185,15 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
   <div class="bur" aria-hidden="true">💬<span id="chatBadge" hidden></span></div>
 </div></div>
 <section id="chatPanel" hidden aria-label="Chat">
-  <header><button type="button" id="chatCerrar" aria-label="Volver">←</button><div class="av" aria-hidden="true"></div><b class="nom"></b></header>
+  <header><button type="button" id="chatCerrar" aria-label="Volver">←</button><div class="av" aria-hidden="true"></div><div class="tit"><b class="nom"></b><small id="chatSub"></small></div><button type="button" class="ico" id="chatBuscarBtn" aria-label="Buscar en el chat">🔍</button><button type="button" class="ico" id="chatDestBtn" aria-label="Mensajes destacados">⭐</button><button type="button" class="ico" id="chatMenuBtn" aria-label="Ajustes del chat">☰</button></header>
+  <div id="chatFijado" hidden role="button" tabindex="0"><span aria-hidden="true">📌</span><div><b>Mensaje fijado</b><span class="t"></span></div><button type="button" id="chatDesfijar" aria-label="Desfijar">✕</button></div>
+  <div id="chatBuscar" hidden role="dialog" aria-label="Buscar en el chat"><div class="barra"><input id="chatBuscarQ" type="search" enterkeyhint="search" placeholder="Buscar en el chat" aria-label="Buscar en el chat"><button type="button" id="chatBuscarCerrar" aria-label="Cerrar">✕</button></div><div class="res"></div></div>
+  <div id="chatAjustes" hidden role="dialog" aria-label="Ajustes del chat"><div class="barra"><b>Privacidad del chat</b><button type="button" id="chatAjustesCerrar" aria-label="Cerrar">✕</button></div>
+    <label class="op"><input type="checkbox" data-priv="leido"><span><b>Confirmaciones de lectura</b><small>Tildes verdes cuando se ve un mensaje. Si las apagás, no las mandás ni las ves (como en WhatsApp).</small></span></label>
+    <label class="op"><input type="checkbox" data-priv="ultimaVez"><span><b>Últ. vez y en línea</b><small>Si lo apagás, no mostrás cuándo estás en línea y tampoco ves la del otro.</small></span></label>
+    <label class="op"><input type="checkbox" data-priv="escribiendo"><span><b>"Escribiendo…"</b><small>Si lo apagás, no se ve cuando escribís y tampoco ves cuando escribe el otro.</small></span></label>
+    <p class="nota">Cada uno elige lo suyo. Los dos tildes grises (llegó) se ven siempre.</p></div>
+  <div id="chatDestacados" hidden role="dialog" aria-label="Destacados"><div class="barra"><b>⭐ Destacados</b><button type="button" id="chatDestCerrar" aria-label="Cerrar">✕</button></div><div class="res"></div></div>
   <div id="chatLista"></div>
   <div id="chatCita" hidden><div class="t"><b></b><span></span></div><button type="button" id="chatCitaQuitar" aria-label="Cancelar respuesta">✕</button></div>
   <form id="chatForm" autocomplete="off">
@@ -173,7 +212,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
   </div>
   <div id="chatAcciones" hidden>
     <div class="reac">${L.REACCIONES.map((r) => `<button type="button" data-reac="${r}" aria-label="Reaccionar ${r}">${r}</button>`).join('')}</div>
-    <div class="fila"><button type="button" class="btn ghost" id="chatResponder">Responder</button><button type="button" class="btn ghost" id="chatCopiar">Copiar</button><button type="button" class="btn ghost" id="chatBorrar" hidden>Borrar</button><button type="button" class="btn ghost" id="chatCancelar">Cancelar</button></div>
+    <div class="fila"><button type="button" class="btn ghost" id="chatResponder">Responder</button><button type="button" class="btn ghost" id="chatCopiar">Copiar</button><button type="button" class="btn ghost" id="chatEditar" hidden>Editar</button><button type="button" class="btn ghost" id="chatFijar">Fijar</button><button type="button" class="btn ghost" id="chatDestacar">Destacar</button><button type="button" class="btn ghost" id="chatBorrarMio">Eliminar para mí</button><button type="button" class="btn ghost" id="chatBorrar" hidden>Eliminar para todos</button><button type="button" class="btn ghost" id="chatCancelar">Cancelar</button></div>
   </div>
 </section>`);
 
@@ -200,14 +239,17 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     function pintarLista() {
       const cont = $('chatLista');
       const alFondo = cont.scrollHeight - cont.scrollTop - cont.clientHeight < 120;
-      soltarDesliz(); // un redibujo en medio de un deslizamiento lo cancela limpio
+      // un redibujo en medio de un deslizamiento no lo corta: se pasa a la burbuja nueva del mismo mensaje (abajo)
       cont.replaceChildren();
       if (hayMas) { const b = document.createElement('button'); b.type = 'button'; b.id = 'chatMas'; b.className = 'link'; b.textContent = 'Ver anteriores'; cont.appendChild(b); }
       if (!lista.length) { const p = document.createElement('p'); p.className = 'vacio'; p.textContent = 'Todavía no hay mensajes. ¡Mandá el primero! 🚗'; cont.appendChild(p); }
       for (const m of lista) {
+        if (ocultos.has(m.id)) continue; // eliminado para mí
         const fila = document.createElement('div'); fila.className = `msg ${m.autor === yo() ? 'mio' : 'otro'} ${m.autor}` + (m.id === resaltadoId && Date.now() < resaltadoHasta ? ' resaltado' : ''); fila.dataset.id = m.id;
         const bur = document.createElement('div'); bur.className = 'burbuja' + (m.id === selId ? ' sel' : ''); bur.dataset.id = m.id;
-        const hora = document.createElement('span'); hora.className = 'hora'; hora.textContent = L.horaCorta(m.creado);
+        const hora = document.createElement('span'); hora.className = 'hora'; hora.textContent = (destacados.has(m.id) ? '⭐ ' : '') + (m.editado ? 'Editado ' : '') + L.horaCorta(m.creado);
+        const ti = L.tilde(m, yo(), permite('leido') ? estados[otro()] : { ...estados[otro()], leido: null });
+        if (ti) { const t = document.createElement('span'); t.className = 'tilde t-' + ti; t.textContent = ti === 'reloj' ? '🕓' : ti === 'enviado' ? '✓' : '✓✓'; t.setAttribute('aria-label', { reloj: 'Enviando', enviado: 'Enviado', entregado: 'Entregado', leido: 'Leído' }[ti]); hora.appendChild(t); }
         if (m.responde_a) bur.appendChild(nodoCita(m.responde_a));
         if (m.tipo === 'sticker') {
           bur.classList.add('sticker', 'media'); if (m.subiendo) bur.classList.add('subiendo');
@@ -216,15 +258,99 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
           bur.classList.add('media'); if (m.subiendo) bur.classList.add('subiendo');
           bur.appendChild(m.tipo === 'foto' ? nodoFoto(m) : nodoAudio(m));
           if (m.subiendo) { const e = document.createElement('div'); e.className = 'estado'; e.textContent = 'Subiendo…'; bur.appendChild(e); }
-        } else { const txt = document.createElement('div'); txt.className = 'txt'; txt.textContent = m.texto || L.resumen(m); bur.appendChild(txt); }
+        } else { if (m.tipo === 'eliminado') { bur.classList.add('eliminado'); medios.delete(m.id); } const txt = document.createElement('div'); txt.className = 'txt'; txt.textContent = m.tipo === 'eliminado' ? L.resumen(m) : m.texto || L.resumen(m); bur.appendChild(txt); }
         bur.appendChild(hora); fila.appendChild(bur);
         const rs = Object.values(m.reacciones || {});
         if (rs.length) { const r = document.createElement('div'); r.className = 'reacs'; r.textContent = rs[0] === rs[1] ? `${rs[0]} 2` : rs.join(' '); fila.appendChild(r); }
         cont.appendChild(fila);
       }
       if (alFondo) cont.scrollTop = cont.scrollHeight;
+      if (desliz) { const nb = [...cont.querySelectorAll('.burbuja')].find((x) => x.dataset.id === desliz.id); if (nb) { desliz.b = nb; if (desliz.dx > 10) nb.style.transform = `translateX(${Math.min(desliz.dx, 80)}px)`; } else desliz = null; }
     }
-    const pintar = () => { pintarCabeceras(); if (abierto()) pintarLista(); };
+    const pintar = () => { pintarCabeceras(); pintarSub(); pintarFijado(); if (abierto()) pintarLista(); marcarEstado(); };
+
+    /* ---------- tildes: entregado / leído (chat_estado) ---------- */
+    const estados = { A: null, B: null };
+    // privacidad de cada uno: si uno apaga algo, ninguno de los dos lo ve (regla de WhatsApp)
+    const priv = { A: {}, B: {} };
+    const miPriv = (k) => priv[yo()]?.[k] !== false;
+    const permite = (k) => priv.A?.[k] !== false && priv.B?.[k] !== false;
+    if (db) for (const k of ['A', 'B']) db.doc('chatpriv/' + k).onSnapshot((d) => { priv[k] = (d.exists && d.data()) || {}; presente(); pintar(); pintarAjustes(); });
+    function pintarAjustes() { document.querySelectorAll('#chatAjustes [data-priv]').forEach((c) => { c.checked = miPriv(c.dataset.priv); }); }
+    let marcado = { ent: 0, lei: 0 }, marcando = false;
+    const maxDelOtro = () => lista.reduce((mx, m) => (m.autor === otro() && !String(m.id).startsWith('tmp-') ? Math.max(mx, Date.parse(m.creado)) : mx), 0);
+    async function cargarEstados() {
+      const { data, error } = await sb.from('chat_estado').select('*');
+      if (error) return console.warn('estado del chat', error.message);
+      for (const e of data || []) estados[e.quien] = e;
+      pintar();
+    }
+    async function marcarEstado(visto) {
+      if (marcando) return;
+      const hasta = maxDelOtro(), leyendo = abierto() && !document.hidden && miPriv('leido');
+      if (visto && !miPriv('ultimaVez')) visto = false;
+      const ent = hasta > marcado.ent ? hasta : 0, lei = leyendo && hasta > marcado.lei ? hasta : 0;
+      if (!ent && !lei && !visto) return;
+      marcando = true;
+      try {
+        const { data, error } = await sb.rpc('chat_marcar', { p_quien: yo(), p_entregado: ent ? new Date(ent).toISOString() : null, p_leido: lei ? new Date(lei).toISOString() : null, p_visto: !!visto });
+        if (error) throw error;
+        if (ent) marcado.ent = ent; if (lei) marcado.lei = lei;
+        estados[yo()] = data; avisar('estado', { fila: data });
+      } catch (e) { console.warn('no se pudo marcar el estado', e.message); }
+      finally { marcando = false; }
+    }
+    // el service worker marca "entregado" cuando llega el aviso con la app cerrada: necesita saber el viaje y quién soy
+    function guardarParaAvisos() {
+      try { caches.open('rumbo-config').then((c) => c.put('./__chat', new Response(JSON.stringify({ viaje, quien: yo(), url: sb.supabaseUrl, key: sb.supabaseKey }), { headers: { 'Content-Type': 'application/json' } }))).catch(() => {}); } catch {}
+    }
+    guardarParaAvisos();
+
+    /* ---------- en línea / últ. vez / escribiendo ---------- */
+    let enLinea = false, escribeHasta = 0, ultimoEscribo = 0;
+    function pintarSub() {
+      const el = $('chatSub'); if (!el) return;
+      const escribe = Date.now() < escribeHasta && permite('escribiendo');
+      el.classList.toggle('escribe', escribe);
+      el.textContent = escribe ? 'escribiendo…' : !permite('ultimaVez') ? '' : enLinea ? 'en línea' : L.ultimaVez(estados[otro()]?.visto_en);
+    }
+    canal.on('presence', { event: 'sync' }, () => {
+      try { enLinea = Object.values(canal.presenceState()).flat().some((p) => p.quien === otro()); } catch { enLinea = false; }
+      pintarSub();
+    });
+    // presencia: solo se avisa cuando cambia (cada track de más hace que el canal se reconecte y se pierdan mensajes)
+    let enPresencia = null;
+    function presente() {
+      const quiero = !document.hidden && miPriv('ultimaVez');
+      if (quiero === enPresencia) return;
+      if (enPresencia !== null && document.hidden) marcarEstado(true);
+      enPresencia = quiero;
+      if (quiero) canal.track?.({ quien: yo() })?.catch?.(() => {}); else canal.untrack?.()?.catch?.(() => {});
+    }
+    document.addEventListener('visibilitychange', presente);
+    setTimeout(presente, 1500);
+
+    /* ---------- fijado (compartido) y destacados / eliminados para mí (de este teléfono) ---------- */
+    let fijadoId = null, pidiendoFijo = false;
+    if (db) db.doc('chatfijo/actual').onSnapshot((d) => { fijadoId = d.exists ? d.data()?.id || null : null; pintarFijado(); });
+    function pintarFijado() {
+      const el = $('chatFijado'); if (!el) return;
+      const o = fijadoId && originalDe(fijadoId);
+      el.hidden = !fijadoId || o === null || (o && o.tipo === 'eliminado') || ocultos.has(fijadoId);
+      if (!el.hidden) el.querySelector('.t').textContent = o ? L.resumen(o) : '…';
+      if (fijadoId && o === undefined && !pidiendoFijo) { pidiendoFijo = true; traerMensajes([fijadoId]).finally(() => { pidiendoFijo = false; }); } // uno a la vez; si falla, espera (citasEsperaHasta)
+    }
+    async function traerMensajes(ids) {
+      if (!ids.length || Date.now() < citasEsperaHasta) return;
+      const { data, error } = await sb.from('mensajes').select('id,autor,tipo,texto,creado').in('id', ids);
+      if (error) { citasEsperaHasta = Date.now() + 30000; return; }
+      for (const id of ids) citados.set(id, (data || []).find((x) => x.id === id) || null);
+      pintar();
+    }
+    const claveLocal = (k) => 'chat' + k + ':' + viaje;
+    const leerSet = (k) => { try { return new Set(JSON.parse(localStorage.getItem(claveLocal(k)) || '[]')); } catch { return new Set(); } };
+    const guardarSet = (k, s) => { try { localStorage.setItem(claveLocal(k), JSON.stringify([...s])); } catch {} };
+    const destacados = leerSet('Destacados'), ocultos = leerSet('Ocultos');
 
     /* ---------- responder citando ---------- */
     let citando = null; const citados = new Map(); let buscandoCitas = false, citasEsperaHasta = 0; // citados: id → mensaje (o null si ya no existe)
@@ -260,7 +386,25 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       $('chatCita').querySelector('span').textContent = L.textoCita(o);
       $('chatCita').hidden = false; $('chatTexto').focus();
     }
-    function quitarCita() { citando = null; $('chatCita').hidden = true; }
+    let editandoMsg = null;
+    function quitarCita() { citando = null; if (editandoMsg) { editandoMsg = null; $('chatTexto').value = ''; autoAlto?.(); actualizarBoton?.(); } $('chatCita').hidden = true; }
+    function editar(id) {
+      const m = lista.find((x) => x.id === id); if (!m || !L.puedeEditar(m, yo())) return;
+      citando = null; editandoMsg = id;
+      $('chatCita').querySelector('b').textContent = 'Editando mensaje'; $('chatCita').querySelector('span').textContent = m.texto;
+      $('chatCita').hidden = false; $('chatTexto').value = m.texto; autoAlto(); actualizarBoton(); $('chatTexto').focus();
+    }
+    async function guardarEdicion() {
+      const id = editandoMsg, t = $('chatTexto').value;
+      if (!L.textoValido(t)) return;
+      enviando = true;
+      const { data, error } = await sb.rpc('editar_mensaje', { p_id: id, p_texto: t });
+      enviando = false;
+      if (error) { console.error(error); return window.aviso?.(error.code === 'P0002' ? 'Ya no se puede editar: pasaron los 15 minutos.' : 'No se pudo editar. Probá de nuevo.'); }
+      const fila = Array.isArray(data) ? data[0] : data;
+      editandoMsg = null; $('chatCita').hidden = true; $('chatTexto').value = ''; autoAlto(); actualizarBoton();
+      if (fila) { lista = L.fusionar(lista, fila); pintar(); avisar('cambio', { m: fila }); }
+    }
     // al mandar: se usa la cita actual y se limpia solo si salió bien
     // al mandar: se toma la cita y la barra se va enseguida (lo siguiente que escriba no hereda la cita)
     const usarCita = () => { const c = citando; quitarCita(); return c; };
@@ -729,7 +873,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     $('chatVisor').addEventListener('click', () => { if (history.state?.foto) history.back(); else cerrarVisor(); });
     // la página lo llama en cada redibujo del encabezado (también al recargar la config): solo se cancela la respuesta si cambió quién soy
     let soyAntes = yo();
-    window.alCambiarSoyChat = () => { if (yo() !== soyAntes) { soyAntes = yo(); quitarCita(); } pintar(); };
+    window.alCambiarSoyChat = () => { if (yo() !== soyAntes) { soyAntes = yo(); quitarCita(); marcado = { ent: 0, lei: 0 }; enPresencia = null; presente(); guardarParaAvisos(); } pintar(); };
 
     /* ---------- datos ---------- */
     const avisar = (accion, payload) => canal.send({ type: 'broadcast', event: 'chat', payload: { accion, ...payload } });
@@ -754,6 +898,9 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     }
     canal.on('broadcast', { event: 'chat' }, ({ payload: p }) => {
       if (!p) return;
+      if (p.accion === 'estado' && p.fila?.quien) { estados[p.fila.quien] = p.fila; pintar(); return; }
+      if (p.accion === 'escribiendo') { if (p.quien === otro()) { escribeHasta = Date.now() + 4000; pintarSub(); setTimeout(pintarSub, 4100); } return; }
+      if (p.accion === 'nuevo' && p.m?.autor === otro()) escribeHasta = 0;
       if ((p.accion === 'nuevo' || p.accion === 'cambio') && p.m?.id) lista = L.fusionar(lista, p.m);
       else if (p.accion === 'borrado' && p.id) { lista = L.quitar(lista, p.id); citados.set(p.id, null); if (citando === p.id) quitarCita(); limpiarMedios(); }
       else return;
@@ -765,6 +912,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     async function enviar() {
       const t = $('chatTexto').value;
       if (enviando || !L.textoValido(t)) return;
+      if (editandoMsg) return guardarEdicion();
       enviando = true; $('chatEnviar').disabled = true;
       $('chatTexto').value = ''; autoAlto(); actualizarBoton();
       const cita = usarCita();
@@ -789,12 +937,13 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       marcarVisto(); pintar();
       const cont = $('chatLista'); cont.scrollTop = cont.scrollHeight;
     }
-    function cerrarPanel() { ocultarAcciones(); ocultarStickers(); cerrarEditor(); mostrarHoja(false); $('chatPanel').hidden = true; document.documentElement.style.overflow = ''; marcarVisto(); pintar(); }
+    function cerrarPanel() { ocultarAcciones(); ocultarStickers(); cerrarEditor(); mostrarHoja(false); $('chatBuscar').hidden = true; $('chatDestacados').hidden = true; $('chatAjustes').hidden = true; $('chatPanel').hidden = true; document.documentElement.style.overflow = ''; marcarVisto(); pintar(); }
     $('chatBarra').addEventListener('click', abrirPanel);
     $('chatBarra').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirPanel(); } });
     $('chatCerrar').addEventListener('click', () => { if (history.state?.chat) history.back(); else { history.replaceState(null, '', sinHash()); cerrarPanel(); } });
     window.addEventListener('popstate', () => {
       if (!$('chatFotoHoja').hidden && !history.state?.hoja) { mostrarHoja(false); if (location.hash === '#chat') return; }
+      for (const capa of ['chatBuscar', 'chatDestacados', 'chatAjustes']) if (!$(capa).hidden && history.state?.capa !== capa) { $(capa).hidden = true; if (location.hash === '#chat') return; }
       if (!$('stickerEditor').hidden && !history.state?.stked) { cerrarEditor(); if (location.hash === '#chat' && history.state?.stk) return; }
       if (!$('chatStickers').hidden && !history.state?.stk) { ocultarStickers(); if (location.hash === '#chat') return; }
       if (!$('chatVisor').hidden && !history.state?.foto) { cerrarVisor(); if (location.hash === '#chat') return; }
@@ -806,6 +955,7 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
     /* ---------- escribir ---------- */
     function autoAlto() { const t = $('chatTexto'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 130) + 'px'; }
     $('chatTexto').addEventListener('input', autoAlto);
+    $('chatTexto').addEventListener('input', () => { if (miPriv('escribiendo') && $('chatTexto').value.trim() && Date.now() - ultimoEscribo > 2500) { ultimoEscribo = Date.now(); avisar('escribiendo', { quien: yo() }); } });
     $('chatTexto').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !tactil) { e.preventDefault(); enviar(); } });
     $('chatForm').addEventListener('submit', (e) => { e.preventDefault(); if (!modoMic()) enviar(); });
 
@@ -816,7 +966,12 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       document.querySelectorAll('#chatAcciones [data-reac]').forEach((b) => b.classList.toggle('mia', m.reacciones?.[yo()] === b.dataset.reac));
       $('chatCopiar').hidden = !m.texto;
       $('chatResponder').hidden = id.startsWith('tmp-');
-      const borrar = $('chatBorrar'); borrar.hidden = m.autor !== yo(); borrar.classList.remove('armed'); borrar.textContent = 'Borrar';
+      const borrar = $('chatBorrar'); borrar.hidden = m.autor !== yo() || m.tipo === 'eliminado' || id.startsWith('tmp-'); borrar.classList.remove('armed'); borrar.textContent = 'Eliminar para todos';
+      $('chatEditar').hidden = !L.puedeEditar(m, yo());
+      $('chatFijar').hidden = m.tipo === 'eliminado' || id.startsWith('tmp-'); $('chatFijar').textContent = fijadoId === id ? 'Desfijar' : 'Fijar';
+      $('chatDestacar').hidden = m.tipo === 'eliminado' || id.startsWith('tmp-'); $('chatDestacar').textContent = destacados.has(id) ? 'Quitar destacado' : 'Destacar';
+      $('chatBorrarMio').hidden = id.startsWith('tmp-');
+      if (m.tipo === 'eliminado') { $('chatResponder').hidden = true; $('chatCopiar').hidden = true; }
       $('chatAcciones').hidden = false;
       history.pushState({ chat: 1, acc: 1 }, '', '#chat');
     }
@@ -864,20 +1019,78 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       if (error) { console.error(error); lista = L.fusionar(lista, m); pintar(); window.aviso?.('No se pudo reaccionar. Probá de nuevo.'); return; }
       lista = L.fusionar(lista, data); pintar(); avisar('cambio', { m: data });
     });
+    $('chatEditar').addEventListener('click', () => { const id = selId; cerrarAcciones(); if (id) editar(id); });
+    $('chatBorrarMio').addEventListener('click', () => { const id = selId; cerrarAcciones(); if (!id) return; ocultos.add(id); guardarSet('Ocultos', ocultos); if (citando === id || editandoMsg === id) quitarCita(); pintar(); });
+    $('chatDestacar').addEventListener('click', () => { const id = selId; cerrarAcciones(); if (!id) return; if (destacados.has(id)) destacados.delete(id); else destacados.add(id); guardarSet('Destacados', destacados); pintar(); });
+    $('chatFijar').addEventListener('click', () => { const id = selId; cerrarAcciones(); if (!id || !db) return; db.doc('chatfijo/actual').set({ id: fijadoId === id ? null : id }).catch((e) => { console.error(e); window.aviso?.('No se pudo fijar. Probá de nuevo.'); }); });
+    $('chatDesfijar').addEventListener('click', (e) => { e.stopPropagation(); db?.doc('chatfijo/actual').set({ id: null }); });
+    $('chatFijado').addEventListener('click', () => { if (fijadoId) irAlOriginal(fijadoId); });
+
+    /* ---------- buscar en el chat y destacados (capas con su lugar en el historial) ---------- */
+    function abrirCapa(id) { $(id).hidden = false; $('chatPanel').style.setProperty('--cab', $('chatPanel').querySelector('header').offsetHeight + 'px'); history.pushState({ chat: 1, capa: id }, '', '#chat'); }
+    function cerrarCapa(id) { if ($(id).hidden) return; if (history.state?.capa === id) history.back(); else $(id).hidden = true; }
+    const filaRes = (m, marca) => {
+      const b = document.createElement('button'); b.type = 'button'; b.dataset.ir = m.id;
+      const sm = document.createElement('small'); sm.textContent = (m.autor === yo() ? 'Vos' : nombres()[m.autor] || '') + ' · ' + new Date(m.creado).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      const t = document.createElement('span'), txt = m.tipo === 'texto' ? m.texto : L.resumen(m);
+      if (marca) { const i = txt.toLowerCase().indexOf(marca.toLowerCase()); if (i >= 0) { const mk = document.createElement('mark'); mk.textContent = txt.slice(i, i + marca.length); t.append(txt.slice(0, i), mk, txt.slice(i + marca.length)); } else t.textContent = txt; } else t.textContent = txt;
+      b.append(sm, t); return b;
+    };
+    let buscarTimer = 0, turnoBusca = 0;
+    $('chatBuscarBtn').addEventListener('click', () => { abrirCapa('chatBuscar'); $('chatBuscarQ').value = ''; $('chatBuscar').querySelector('.res').replaceChildren(); $('chatBuscarQ').focus(); });
+    $('chatBuscarCerrar').addEventListener('click', () => cerrarCapa('chatBuscar'));
+    $('chatBuscarQ').addEventListener('input', () => { clearTimeout(buscarTimer); buscarTimer = setTimeout(buscar, 300); });
+    async function buscar() {
+      const q = $('chatBuscarQ').value.trim(), patron = L.patronBusqueda(q), res = $('chatBuscar').querySelector('.res'), turno = ++turnoBusca;
+      if (!patron) return res.replaceChildren();
+      const { data, error } = await sb.from('mensajes').select('id,autor,tipo,texto,creado').eq('tipo', 'texto').ilike('texto', patron).order('creado', { ascending: false }).limit(50);
+      if (turno !== turnoBusca) return;
+      if (error) { const p = document.createElement('p'); p.textContent = 'No se pudo buscar. Revisá la señal.'; return res.replaceChildren(p); }
+      const xs = (data || []).filter((m) => !ocultos.has(m.id));
+      if (!xs.length) { const p = document.createElement('p'); p.textContent = 'No hay mensajes con eso.'; return res.replaceChildren(p); }
+      res.replaceChildren(...xs.map((m) => filaRes(m, q)));
+    }
+    $('chatDestBtn').addEventListener('click', async () => {
+      abrirCapa('chatDestacados');
+      const res = $('chatDestacados').querySelector('.res'), ids = [...destacados];
+      if (!ids.length) { const p = document.createElement('p'); p.textContent = 'Todavía no destacaste mensajes. Mantené apretado uno y tocá Destacar.'; return res.replaceChildren(p); }
+      const { data, error } = await sb.from('mensajes').select('id,autor,tipo,texto,creado').in('id', ids).order('creado', { ascending: false });
+      if (error) { const p = document.createElement('p'); p.textContent = 'No se pudieron traer. Revisá la señal.'; return res.replaceChildren(p); }
+      const xs = (data || []).filter((m) => m.tipo !== 'eliminado' && !ocultos.has(m.id));
+      if (!xs.length) { const p = document.createElement('p'); p.textContent = 'Los mensajes destacados se eliminaron.'; return res.replaceChildren(p); }
+      res.replaceChildren(...xs.map((m) => filaRes(m)));
+    });
+    $('chatDestCerrar').addEventListener('click', () => cerrarCapa('chatDestacados'));
+    $('chatMenuBtn').addEventListener('click', () => { pintarAjustes(); abrirCapa('chatAjustes'); });
+    $('chatAjustesCerrar').addEventListener('click', () => cerrarCapa('chatAjustes'));
+    $('chatAjustes').addEventListener('change', (e) => {
+      const c = e.target.closest('[data-priv]'); if (!c || !db) return;
+      priv[yo()] = { ...priv[yo()], [c.dataset.priv]: c.checked }; presente(); pintar();
+      db.doc('chatpriv/' + yo()).set(priv[yo()]).catch((err) => { console.error(err); window.aviso?.('No se pudo guardar el ajuste. Probá de nuevo.'); });
+    });
+    for (const capa of ['chatBuscar', 'chatDestacados']) $(capa).addEventListener('click', (e) => {
+      const b = e.target.closest('[data-ir]'); if (!b) return;
+      const id = b.dataset.ir; cerrarCapa(capa); setTimeout(() => irAlOriginal(id), 60);
+    });
+
     $('chatBorrar').addEventListener('click', async () => {
       const btn = $('chatBorrar');
-      if (!btn.classList.contains('armed')) { btn.classList.add('armed'); btn.textContent = '¿Borrar? Tocá de nuevo'; return; }
+      if (!btn.classList.contains('armed')) { btn.classList.add('armed'); btn.textContent = '¿Eliminar para todos? Tocá de nuevo'; return; }
       const id = selId; cerrarAcciones(); if (!id) return;
-      const { error } = await sb.from('mensajes').delete().eq('id', id);
-      if (error) { console.error(error); window.aviso?.('No se pudo borrar. Probá de nuevo.'); return; }
-      const borrado = lista.find((x) => x.id === id);
-      medios.get(id)?.querySelector?.('audio')?.pause();
-      lista = L.quitar(lista, id); citados.set(id, null); if (citando === id) quitarCita(); medios.delete(id); pintar(); avisar('borrado', { id });
-      if (borrado?.archivo && borrado.tipo !== 'sticker') sb.storage.from(M.BUCKET).remove(borrado.tipo === 'foto' ? [borrado.archivo, M.rutaMini(borrado.archivo)] : [borrado.archivo]).then(({ error }) => { if (error) console.error(error); });
+      const { data: res, error } = await sb.rpc('eliminar_mensaje', { p_id: id });
+      if (error) { console.error(error); window.aviso?.('No se pudo eliminar. Probá de nuevo.'); return; }
+      medios.get(id)?.querySelector?.('audio')?.pause(); medios.delete(id);
+      if (citando === id || editandoMsg === id) quitarCita();
+      lista = L.fusionar(lista, res.fila); citados.set(id, res.fila); pintar(); avisar('cambio', { m: res.fila });
+      if (fijadoId === id) db?.doc('chatfijo/actual').set({ id: null });
+      // los archivos de stickers no se borran (los usan otros mensajes y "Nuestros")
+      if (res.archivo_antes && res.tipo_antes !== 'sticker') sb.storage.from(M.BUCKET).remove(res.tipo_antes === 'foto' ? [res.archivo_antes, M.rutaMini(res.archivo_antes)] : [res.archivo_antes]).then(({ error }) => { if (error) console.error(error); });
     });
 
     pintar();
     cargar();
+    cargarEstados();
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) cargarEstados(); });
     if (location.hash === '#chat') { history.replaceState(null, '', sinHash()); abrirPanel(); }
   };
 })();

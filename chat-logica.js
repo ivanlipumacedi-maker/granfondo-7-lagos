@@ -6,6 +6,7 @@
   const textoValido = (s) => { const t = String(s ?? '').trim(); return t.length >= 1 && t.length <= MAX_TEXTO; };
 
   function resumen(m) {
+    if (m.tipo === 'eliminado') return '🚫 Se eliminó este mensaje';
     if (m.tipo === 'foto') return '📷 Foto';
     if (m.tipo === 'audio') return '🎤 Audio';
     if (m.tipo === 'sticker') return 'Sticker';
@@ -14,12 +15,35 @@
   }
 
   // responder citando
-  const textoCita = (original) => (original ? resumen(original) : 'Mensaje borrado');
+  const textoCita = (original) => (!original || original.tipo === 'eliminado' ? 'Mensaje eliminado' : resumen(original));
   /** ids citados que no están en la lista ni se buscaron ya (citados: Map id → mensaje|null) */
   function citasFaltantes(lista, citados) {
     const hay = new Set(lista.map((m) => m.id));
     return [...new Set(lista.map((m) => m.responde_a).filter((id) => id && !hay.has(id) && !citados.has(id)))];
   }
+
+  // tildes de mis mensajes: estado = { entregado, leido } del otro (hasta qué mensaje recibió / vio)
+  function tilde(m, yo, estado) {
+    if (m.autor !== yo || m.tipo === 'eliminado') return null;
+    if (String(m.id).startsWith('tmp-')) return 'reloj';
+    const c = Date.parse(m.creado), hasta = (t) => (t ? Date.parse(t) >= c : false);
+    return hasta(estado?.leido) ? 'leido' : hasta(estado?.entregado) ? 'entregado' : 'enviado';
+  }
+  const EDITAR_MS = 15 * 60 * 1000;
+  const puedeEditar = (m, yo, ahora = Date.now()) => m.autor === yo && m.tipo === 'texto' && !String(m.id).startsWith('tmp-') && ahora - Date.parse(m.creado) < EDITAR_MS;
+
+  const fmtHM = new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const fmtDia = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit' });
+  /** "últ. vez hoy a las 14:05" / "ayer a las" / "el 10/11 a las" */
+  function ultimaVez(t, ahora = Date.now()) {
+    if (!t) return '';
+    const d = new Date(t), hoy = fmtDia.format(new Date(ahora)), ayer = fmtDia.format(new Date(ahora - 864e5)), dia = fmtDia.format(d), hm = fmtHM.format(d);
+    if (dia === hoy) return 'últ. vez hoy a las ' + hm;
+    if (dia === ayer) return 'últ. vez ayer a las ' + hm;
+    return 'últ. vez el ' + dia.slice(8, 10) + '/' + dia.slice(5, 7) + ' a las ' + hm;
+  }
+  /** patrón ILIKE para buscar en el chat, con % y _ escapados (null si no hay nada que buscar) */
+  function patronBusqueda(q) { const t = String(q ?? '').trim(); return t ? '%' + t.replace(/[\\%_]/g, (c) => '\\' + c) + '%' : null; }
 
   const porFecha = (a, b) => Date.parse(a.creado) - Date.parse(b.creado);
   const fusionar = (lista, m) => [...lista.filter((x) => x.id !== m.id), m].sort(porFecha);
@@ -64,7 +88,7 @@
     return i < palabras.length ? [primera, palabras.slice(i).join(' ')] : [primera];
   }
 
-  const L = { REACCIONES, MAX_TEXTO, textoValido, resumen, textoCita, citasFaltantes, fusionar, quitar, noLeidos, alternarReaccion, horaCorta, ultimoCreado, reconciliar,
+  const L = { REACCIONES, MAX_TEXTO, textoValido, resumen, textoCita, citasFaltantes, tilde, puedeEditar, EDITAR_MS, ultimaVez, patronBusqueda, fusionar, quitar, noLeidos, alternarReaccion, horaCorta, ultimoCreado, reconciliar,
     escalar, duracionTexto, rutaArchivo, AUDIO_MIN_MS, AUDIO_MAX_MS, audioValido, textoSticker, externoValido, lineasSticker };
   if (typeof module !== 'undefined' && module.exports) module.exports = L; else g.ChatLogica = L;
 })(this);
