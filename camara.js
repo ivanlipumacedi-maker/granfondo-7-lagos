@@ -4,7 +4,8 @@
   const CSS = `
 #camara { position: fixed; inset: 0; z-index: 90; background: #000; color: #fff; touch-action: none; user-select: none; -webkit-user-select: none }
 #camara[hidden] { display: none }
-#camara video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover }
+/* la vista previa muestra la foto entera (3:4 con bandas negras): lo que ves es lo que sale */
+#camara video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain }
 #camara video.espejo { transform: scaleX(-1) }
 #camara .grilla { position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(90deg, transparent calc(33.33% - .5px), rgba(255,255,255,.45) calc(33.33% - .5px) calc(33.33% + .5px), transparent calc(33.33% + .5px) calc(66.66% - .5px), rgba(255,255,255,.45) calc(66.66% - .5px) calc(66.66% + .5px), transparent calc(66.66% + .5px)),
@@ -88,7 +89,7 @@
 </div>`);
     const raiz = document.getElementById('camara'), video = raiz.querySelector('video');
     const q = (c) => raiz.querySelector(`[data-c="${c}"]`);
-    let stream = null, track = null, caps = {}, camaras = [], hayFrontal = true, idxCam = 0, frontal = false, zoom = 1, ultima = null, alChat = false, ocupado = false, turno = 0, nPend = 0;
+    let stream = null, track = null, caps = {}, camaras = [], hayFrontal = true, idxCam = 0, gran = null, enGran = false, zoomLuego = null, frontal = false, zoom = 1, ultima = null, alChat = false, ocupado = false, turno = 0, nPend = 0;
     let segs = 0; const TIMERS = [0, 3, 10];
     try { if (localStorage.getItem('camGrilla') === '1') { raiz.querySelector('.grilla').hidden = false; q('grilla').setAttribute('aria-pressed', 'true'); } } catch {}
 
@@ -98,7 +99,7 @@
     async function encender() {
       soltar(); error(''); const mio = turno;
       const fino = { width: { ideal: 4096 }, height: { ideal: 3072 } };
-      const video0 = frontal ? { facingMode: 'user', ...fino } : camaras[idxCam] ? { deviceId: { exact: camaras[idxCam] }, ...fino } : { facingMode: { ideal: 'environment' }, ...fino };
+      const video0 = frontal ? { facingMode: 'user', ...fino } : enGran && gran ? { deviceId: { exact: gran }, ...fino } : camaras[idxCam] ? { deviceId: { exact: camaras[idxCam] }, ...fino } : { facingMode: { ideal: 'environment' }, ...fino };
       let nuevo;
       try { nuevo = await navigator.mediaDevices.getUserMedia({ video: video0, audio: false }); }
       catch (e) {
@@ -124,6 +125,9 @@
         camaras = (traseras.length ? traseras : ds).map((d) => d.deviceId);
         hayFrontal = !traseras.length || ds.some((d) => /front|user|frontal/i.test(d.label));
         const actual = track?.getSettings?.().deviceId; idxCam = Math.max(0, camaras.indexOf(actual));
+        // si hay una sola trasera extra es la gran angular: va como botón .6× y 🔄 queda para frontal/trasera
+        gran = A.lentesTraseras(ds, actual).gran;
+        if (gran) { camaras = [actual]; idxCam = 0; }
       } catch (e) { console.error(e); }
     }
 
@@ -131,13 +135,17 @@
       const z = caps.zoom, zs = raiz.querySelector('.zooms'), zr = q('zoomRango');
       zoom = track.getSettings?.().zoom || 1;
       zs.replaceChildren();
-      if (z && z.max > z.min) {
+      const boton = (txt, ds) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = txt; Object.assign(b.dataset, ds); zs.appendChild(b); return b; };
+      if (!frontal && gran) boton('.6×', { lente: 'gran' }).classList.toggle('act', enGran);
+      if (!frontal && gran && enGran) { boton('1×', { lente: 'principal' }); zr.hidden = true; }
+      else if (z && z.max > z.min) {
         for (const v of A.zoomPasos(z.min, z.max)) {
           const b = document.createElement('button'); b.type = 'button'; b.textContent = (v < 1 ? v.toFixed(1).replace('0.', '.') : v) + '×'; b.dataset.z = v; zs.appendChild(b);
         }
         Object.assign(zr, { min: z.min, max: z.max, step: z.step || 0.1, value: zoom }); zr.hidden = false;
       } else zr.hidden = true;
       marcarZoom();
+      if (zoomLuego != null) { const v = zoomLuego; zoomLuego = null; if (v !== 1) ponerZoom(v); }
       q('luz').hidden = !caps.torch; q('luz').setAttribute('aria-pressed', 'false');
       const ex = caps.exposureCompensation, er = q('expRango');
       q('exp').hidden = !(ex && ex.max > ex.min); q('exp').setAttribute('aria-pressed', 'false'); er.hidden = true;
@@ -152,7 +160,7 @@
       if (zPend) return; // un cambio por cuadro
       zPend = requestAnimationFrame(() => { zPend = null; track?.applyConstraints({ advanced: [{ zoom }] }).catch(() => {}); });
     }
-    function marcarZoom() { raiz.querySelectorAll('.zooms button').forEach((b) => b.classList.toggle('act', Math.abs(Number(b.dataset.z) - zoom) < 0.05)); }
+    function marcarZoom() { raiz.querySelectorAll('.zooms button[data-z]').forEach((b) => b.classList.toggle('act', Math.abs(Number(b.dataset.z) - zoom) < 0.05)); }
 
     // pellizcar para zoom, tocar para enfocar
     const dedos = new Map(); let pellizco = null, movio = false;
@@ -165,7 +173,9 @@
     video.addEventListener('pointerup', soltarDedo); video.addEventListener('pointercancel', soltarDedo);
 
     function enfocar(e) {
-      const r = video.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+      const r = video.getBoundingClientRect(), k = Math.min(r.width / (video.videoWidth || r.width), r.height / (video.videoHeight || r.height));
+      const w = (video.videoWidth || r.width) * k, h = (video.videoHeight || r.height) * k;
+      const x = Math.min(1, Math.max(0, (e.clientX - r.left - (r.width - w) / 2) / w)), y = Math.min(1, Math.max(0, (e.clientY - r.top - (r.height - h) / 2) / h));
       const an = raiz.querySelector('.anillo'); an.style.left = e.clientX + 'px'; an.style.top = e.clientY + 'px';
       an.classList.add('si'); setTimeout(() => an.classList.remove('si'), 700);
       if (!track || !caps.pointsOfInterest) return;
@@ -175,6 +185,7 @@
 
     raiz.addEventListener('click', async (e) => {
       const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.lente) { const g = b.dataset.lente === 'gran'; if (g === enGran) return; enGran = g; zoom = 1; return encender(); }
       if (b.dataset.z) return ponerZoom(Number(b.dataset.z));
       switch (b.dataset.c) {
         case 'cerrar': return cerrar();
@@ -183,6 +194,7 @@
         case 'grilla': { const g = raiz.querySelector('.grilla'); g.hidden = !g.hidden; b.setAttribute('aria-pressed', String(!g.hidden)); try { localStorage.setItem('camGrilla', g.hidden ? '0' : '1'); } catch {} return; }
         case 'timer': segs = TIMERS[(TIMERS.indexOf(segs) + 1) % TIMERS.length]; b.textContent = '⏱ ' + segs; return;
         case 'lente':
+          enGran = false;
           if (!frontal && idxCam < camaras.length - 1) idxCam++;
           else if (!frontal) frontal = true;
           else { frontal = false; idxCam = 0; }

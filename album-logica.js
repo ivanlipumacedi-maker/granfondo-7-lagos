@@ -45,6 +45,16 @@
     return p;
   }
 
-  const A = { LIMITE_BYTES, MAX_LADO, rutaFoto, rutaMini, rutaMedia, verFoto, escala, porDia, espacio, fusionar, quitar, espera, zoomPasos };
+  // Traseras: la que abre por defecto es la principal. Si hay exactamente una más, es la gran angular
+  // (así lo expone Chrome en Samsung). Con más de una extra no se puede saber cuál es: no se adivina.
+  function lentesTraseras(dispositivos, actualId) {
+    const traseras = dispositivos.filter((d) => /back|rear|trasera|environment/i.test(d.label || ''));
+    const hayFrontal = dispositivos.some((d) => /front|user|frontal/i.test(d.label || ''));
+    const otras = traseras.filter((d) => d.deviceId !== actualId);
+    const gran = traseras.some((d) => d.deviceId === actualId) && otras.length === 1 ? otras[0].deviceId : null;
+    return { principal: actualId, gran, hayFrontal };
+  }
+
+  const A = { LIMITE_BYTES, MAX_LADO, rutaFoto, rutaMini, rutaMedia, verFoto, escala, porDia, espacio, fusionar, quitar, espera, zoomPasos, lentesTraseras };
   if (typeof module !== 'undefined') module.exports = A; else g.AlbumLogica = A;
 })(typeof window !== 'undefined' ? window : globalThis);
