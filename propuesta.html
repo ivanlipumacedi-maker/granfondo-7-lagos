@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rumbo al Sur: propuesta de diseño</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Overpass:ital,wght@0,400;0,600;0,800;0,900;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --niebla: #EDF1F0;   /* fondo: cielo nublado de cordillera */
+    --basalto: #1F2A2E;  /* texto */
+    --lago: #0F5E6E;     /* Lácar: color principal */
+    --lupino: #7A4FB0;   /* lupinos de noviembre: el único acento fuerte */
+    --lenga: #B7862A;    /* km, ruta hecha */
+    --piedra: #5E6B6F;   /* texto secundario */
+    --linea: #CBD5D3;
+    --papel: #F8FAF9;
+    --mojon: #FFFFFF;
+  }
+  .noche {
+    --niebla: #142024; --basalto: #E6ECEA; --lago: #5FB3C2; --lupino: #B595E3;
+    --lenga: #D9A94A; --piedra: #93A3A6; --linea: #2B3A3F; --papel: #1A282D; --mojon: #F4F6F5;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--niebla); color: var(--basalto);
+    font-family: 'Overpass', system-ui, sans-serif; font-size: 16px; line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+    transition: background .3s, color .3s;
+  }
+  .hoja { max-width: 440px; margin: 0 auto; padding: 20px 20px 120px; }
+  :focus-visible { outline: 3px solid var(--lupino); outline-offset: 2px; }
+
+  /* Cabecera: nombre del viaje + quién soy */
+  header { display: block; }
+  header .soy { display: inline-flex; margin-top: 14px; }
+  h1 { font-weight: 900; font-size: 34px; line-height: 1; letter-spacing: -0.02em; margin: 4px 0 6px; color: var(--lago); }
+  .bajada { margin: 0; color: var(--piedra); font-size: 15px; line-height: 1.4; max-width: 26ch; }
+  .soy { background: var(--papel); border: 1px solid var(--linea); border-radius: 999px; padding: 3px; flex-shrink: 0; }
+  .soy button { font: inherit; font-weight: 600; font-size: 14px; border: 0; background: none; color: var(--piedra); padding: 6px 12px; border-radius: 999px; display: flex; align-items: center; gap: 6px; }
+  .soy button[aria-pressed="true"] { background: var(--lago); color: #fff; }
+  .soy .cara { width: 22px; height: 22px; border-radius: 50%; background: #D7C4EE; color: #3E2466; display: grid; place-items: center; font-size: 11px; font-weight: 800; }
+
+  /* Lo memorable: el mojón kilométrico con la cuenta regresiva, parado sobre la ruta */
+  .ruta { margin: 28px -20px 0; position: relative; }
+  .ruta svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .mojon {
+    position: absolute; left: var(--x, 30%); top: 8px; transform: translateX(-50%);
+    width: 128px; background: linear-gradient(#1F2A2E 0 14px, var(--mojon) 14px); color: #1F2A2E;
+    border-radius: 64px 64px 6px 6px; padding: 30px 10px 12px; margin-top: 4px; text-align: center;
+    box-shadow: 0 1px 0 #C9D1CF, 0 10px 24px -14px rgba(15,94,110,.55);
+    animation: clavar .7s cubic-bezier(.2,.9,.3,1.2) both .15s;
+  }
+  .mojon::after { /* el poste */
+    content: ''; position: absolute; left: 50%; bottom: -34px; width: 14px; height: 34px; transform: translateX(-50%);
+    background: linear-gradient(var(--mojon) 50%, #1F2A2E 50%);
+  }
+    .mojon .num { font-weight: 900; font-size: 64px; line-height: .9; letter-spacing: -0.04em; display: block; }
+  .mojon .uni { font-size: 14px; font-weight: 600; color: #4A575B; }
+  @keyframes clavar { from { transform: translate(-50%, -40px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .mojon { animation: none; } }
+
+  .reloj { display: flex; justify-content: space-between; align-items: baseline; margin-top: 10px; gap: 12px; }
+  .reloj p { margin: 0; color: var(--piedra); font-size: 15px; }
+  .reloj strong { color: var(--basalto); font-weight: 800; font-size: 18px; }
+  .extremos { display: flex; justify-content: space-between; font-size: 13px; color: var(--piedra); margin-top: 2px; }
+  .extremos b { color: var(--basalto); font-weight: 600; }
+
+  /* Misión de hoy: placa con el día, como cartel de ruta */
+  .mision { margin-top: 32px; display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
+  .dia { background: var(--lupino); color: #fff; border-radius: 10px; padding: 8px 10px 6px; text-align: center; min-width: 58px; }
+  .dia span { display: block; font-size: 12px; font-weight: 600; opacity: .9; }
+  .dia b { display: block; font-size: 30px; font-weight: 900; line-height: 1; }
+  .mision h2 { font-size: 15px; font-weight: 600; color: var(--piedra); margin: 2px 0 2px; }
+  .mision p { margin: 0; font-size: 21px; font-weight: 800; line-height: 1.25; letter-spacing: -0.01em; }
+  .hecho { margin-top: 12px; font: inherit; font-weight: 800; font-size: 15px; background: none; color: var(--lupino); border: 2px solid var(--lupino); border-radius: 999px; padding: 7px 16px; }
+
+  .avisos { margin-top: 28px; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--papel); border: 1px solid var(--linea); font-size: 14px; color: var(--piedra); }
+  .avisos button { margin-left: auto; font: inherit; font-weight: 800; font-size: 14px; background: var(--lago); color: #fff; border: 0; border-radius: 999px; padding: 8px 14px; white-space: nowrap; }
+
+  /* Secciones: una barra de pestañas que se desliza, sin cortar en dos renglones */
+  nav { margin: 36px -20px 0; padding: 0 20px; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--linea); }
+  nav::-webkit-scrollbar { display: none; }
+  nav button { font: inherit; font-size: 15px; font-weight: 600; white-space: nowrap; background: none; border: 0; color: var(--piedra); padding: 10px 6px 12px; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+  nav button[aria-selected="true"] { color: var(--basalto); font-weight: 800; border-bottom-color: var(--lago); }
+
+  .seccion h2 { font-size: 24px; font-weight: 900; letter-spacing: -0.02em; margin: 22px 0 4px; }
+  .seccion > p { margin: 0 0 16px; color: var(--piedra); font-size: 15px; }
+
+  /* Paradas: la ruta sigue vertical, con km entre parada y parada */
+  ol.paradas { list-style: none; margin: 0; padding: 0; position: relative; }
+  ol.paradas::before { content: ''; position: absolute; left: 9px; top: 12px; bottom: 12px; border-left: 3px dashed var(--lenga); }
+  ol.paradas li { position: relative; padding: 0 0 22px 36px; }
+  ol.paradas li::before { content: ''; position: absolute; left: 1px; top: 5px; width: 19px; height: 19px; border-radius: 50%; background: var(--niebla); border: 3px solid var(--lago); }
+  ol.paradas li.fin::before { background: var(--lago); }
+  .paradas .cuando { font-size: 13px; color: var(--piedra); }
+  .paradas .donde { font-size: 18px; font-weight: 800; line-height: 1.2; }
+  .paradas .nota { font-size: 14px; color: var(--piedra); margin-top: 2px; }
+  .paradas .km { display: inline-block; margin-top: 6px; font-size: 13px; font-weight: 800; color: var(--lenga); }
+
+  .agregar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; padding: 14px; background: var(--papel); border: 1px solid var(--linea); border-radius: 14px; }
+  .agregar .ancho { grid-column: 1 / -1; }
+  .agregar input { font: inherit; font-size: 16px; width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--linea); background: var(--niebla); color: var(--basalto); }
+  .agregar input::placeholder { color: var(--piedra); opacity: .8; }
+  .agregar button { grid-column: 1 / -1; font: inherit; font-weight: 800; background: var(--lago); color: #fff; border: 0; border-radius: 10px; padding: 12px; }
+  .total { margin-top: 14px; font-size: 14px; color: var(--piedra); }
+  .total b { color: var(--basalto); }
+
+  /* Franja del chat: igual que hoy de lugar, con la nueva paleta */
+  .chat { position: fixed; left: 0; right: 0; bottom: 0; background: var(--papel); border-top: 1px solid var(--linea); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+  .chat div { max-width: 440px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+  .chat .cara { width: 40px; height: 40px; border-radius: 50%; background: #D7C4EE; color: #3E2466; display: grid; place-items: center; font-weight: 800; }
+  .chat b { display: block; font-size: 15px; }
+  .chat span { font-size: 14px; color: var(--piedra); }
+  .chat .abrir { margin-left: auto; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--lago); color: #fff; font-size: 18px; }
+
+  .modo { position: fixed; top: 12px; right: 12px; z-index: 5; font: inherit; font-size: 13px; font-weight: 600; background: var(--basalto); color: var(--niebla); border: 0; border-radius: 999px; padding: 6px 12px; opacity: .85; }
+</style>
+</head>
+<body>
+<button class="modo" id="modo" type="button">Ver de noche</button>
+<main class="hoja">
+  <header>
+    <div>
+      <h1>Rumbo al Sur</h1>
+      <p class="bajada">Lipu y Guti, de Buenos Aires a San Martín de los Andes para el Gran Fondo 7 Lagos.</p>
+    </div>
+    <div class="soy" role="group" aria-label="Quién soy">
+      <button type="button" aria-pressed="true"><span class="cara">L</span>Lipu</button>
+      <button type="button" aria-pressed="false">Guti</button>
+    </div>
+  </header>
+
+  <section class="ruta" aria-label="Cuenta regresiva">
+    <div class="mojon" id="mojon">
+            <span class="num" id="dias">16</span>
+      <span class="uni" id="diasTxt">días</span>
+    </div>
+    <svg viewBox="0 0 440 240" role="img" aria-label="La espera como ruta: de la salida hasta el jueves 19">
+      <!-- la ruta, de Buenos Aires (izquierda) a la cordillera (derecha) -->
+      <path id="camino" d="M 20 200 C 110 196, 150 188, 210 186 S 330 172, 372 150 S 404 120, 420 112" fill="none" stroke="var(--linea)" stroke-width="7" stroke-linecap="round"/>
+      <path id="hecho" d="M 20 200 C 110 196, 150 188, 210 186 S 330 172, 372 150 S 404 120, 420 112" fill="none" stroke="var(--lenga)" stroke-width="7" stroke-linecap="round"/>
+      <!-- cordillera y los lagos al final -->
+      <path d="M 352 132 L 376 96 L 392 116 L 408 84 L 432 124" fill="none" stroke="var(--piedra)" stroke-width="2" stroke-linejoin="round" opacity=".55"/>
+      <g fill="var(--lago)" opacity=".85">
+        <ellipse cx="398" cy="140" rx="9" ry="4"/><ellipse cx="414" cy="132" rx="6" ry="3"/><ellipse cx="386" cy="152" rx="7" ry="3"/>
+        <ellipse cx="426" cy="146" rx="5" ry="2.5"/><ellipse cx="406" cy="154" rx="5" ry="2.5"/><ellipse cx="420" cy="120" rx="4" ry="2"/><ellipse cx="392" cy="128" rx="4" ry="2"/>
+      </g>
+      <circle cx="20" cy="200" r="7" fill="var(--niebla)" stroke="var(--lago)" stroke-width="3"/>
+    </svg>
+  </section>
+  <div class="reloj">
+    <p>Salimos el jueves 19 a las 7</p>
+    <strong id="hms">08:38:33</strong>
+  </div>
+  <div class="extremos"><span>Empezó la espera el 29 oct</span><span><b id="pct">23 %</b> del camino</span></div>
+
+  <section class="mision" aria-label="Misión de hoy">
+    <div class="dia"><span>día</span><b>5</b><span>de 21</span></div>
+    <div>
+      <h2>Misión de hoy</h2>
+      <p>Armar la playlist compartida: 20 temas cada uno, sin derecho a veto.</p>
+      <button class="hecho" type="button">La cumplimos</button>
+    </div>
+  </section>
+
+  <div class="avisos">
+    <span>Un recordatorio al mediodía y un aviso cuando el otro cambie algo.</span>
+    <button type="button">Activar avisos</button>
+  </div>
+
+  <nav role="tablist" aria-label="Secciones">
+    <button role="tab" aria-selected="true">Itinerario</button>
+    <button role="tab" aria-selected="false">Qué llevamos</button>
+    <button role="tab" aria-selected="false">Bingo de ruta</button>
+    <button role="tab" aria-selected="false">Cuentas claras</button>
+    <button role="tab" aria-selected="false">Ajustes</button>
+  </nav>
+
+  <section class="seccion">
+    <h2>Hoja de ruta</h2>
+    <p>Cada parada con su fecha, los km del tramo y lo que no hay que perderse.</p>
+    <ol class="paradas">
+      <li><div class="cuando">jue 19, 7:00</div><div class="donde">Buenos Aires</div><div class="nota">Salida. Mate cargado antes de la General Paz.</div><span class="km">688 km hasta la próxima</span></li>
+      <li><div class="cuando">jue 19</div><div class="donde">Santa Rosa</div><div class="nota">Dormimos acá. Cena y a la cama temprano.</div><span class="km">905 km hasta la próxima</span></li>
+      <li class="fin"><div class="cuando">vie 20</div><div class="donde">San Martín de los Andes</div><div class="nota">Retirar el kit de la carrera antes de las 20.</div></li>
+    </ol>
+    <form class="agregar" onsubmit="event.preventDefault()">
+      <input class="ancho" placeholder="Lugar, por ejemplo Neuquén" aria-label="Lugar">
+      <input type="date" aria-label="Fecha">
+      <input inputmode="numeric" placeholder="Km del tramo" aria-label="Km del tramo">
+      <input class="ancho" placeholder="Nota: dónde dormimos, qué ver, dónde cargar nafta" aria-label="Nota">
+      <button type="submit">Agregar parada</button>
+    </form>
+    <p class="total">En total: <b>1.593 km</b> de ruta.</p>
+  </section>
+</main>
+
+<aside class="chat" aria-label="Chat">
+  <div>
+    <span class="cara">G</span>
+    <span><b>Guti</b><span>Vos: Sticker</span></span>
+    <button class="abrir" type="button" aria-label="Abrir el chat">💬</button>
+  </div>
+</aside>
+
+<script>
+  const salida = new Date('2026-11-19T07:00:00-03:00'), inicio = new Date('2026-10-29T00:00:00-03:00');
+  const camino = document.getElementById('camino'), hecho = document.getElementById('hecho'), largo = camino.getTotalLength();
+  hecho.style.strokeDasharray = largo;
+  function tic() {
+    const ahora = new Date(), falta = Math.max(0, salida - ahora);
+    const d = Math.floor(falta / 864e5), h = Math.floor(falta / 36e5) % 24, m = Math.floor(falta / 6e4) % 60, s = Math.floor(falta / 1e3) % 60;
+    document.getElementById('dias').textContent = d;
+    document.getElementById('diasTxt').textContent = d === 1 ? 'día' : 'días';
+    document.getElementById('hms').textContent = [h, m, s].map((n) => String(n).padStart(2, '0')).join(':');
+    const p = Math.min(1, Math.max(0, (ahora - inicio) / (salida - inicio)));
+    document.getElementById('pct').textContent = Math.round(p * 100) + ' %';
+    hecho.style.strokeDashoffset = largo * (1 - p);
+    // el mojón se para donde va la espera, sin salirse de la pantalla
+    const pt = camino.getPointAtLength(largo * p), svg = camino.ownerSVGElement;
+    const x = Math.min(Math.max(pt.x / 440, 0.18), 0.82);
+    document.getElementById('mojon').style.setProperty('--x', (x * 100) + '%');
+  }
+  tic(); setInterval(tic, 1000);
+  document.getElementById('modo').addEventListener('click', (e) => {
+    const n = document.body.classList.toggle('noche');
+    e.target.textContent = n ? 'Ver de día' : 'Ver de noche';
+  });
+</script>
+</body>
+</html>
