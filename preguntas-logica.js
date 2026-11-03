@@ -6,7 +6,13 @@
   const nivel = (i) => Math.min(3, Math.floor(i / 12) + 1);
   /** índice siguiente: después de la última viene el cierre (= total); desde el cierre, vuelve a empezar */
   const siguiente = (i, total) => (total <= 0 ? 0 : i >= total ? 0 : i + 1);
-  const picantesOk = (e) => !!(e?.picA && e?.picB);
+  // candados: cada mazo con llave se abre solo si los dos prenden la suya ("nuestras" no tiene)
+  const CANDADO = { conocer: ['conA', 'conB'], picantes: ['picA', 'picB'] };
+  const abierto = (e, m) => { const c = CANDADO[m]; return !c || !!(e?.[c[0]] && e?.[c[1]]); };
+  const campo = (m, yo) => CANDADO[m]?.[yo === 'A' ? 0 : 1];
+  const picantesOk = (e) => abierto(e, 'picantes');
+  /** mazo que se ve: el elegido si está abierto; si no, el primero abierto */
+  const visible = (e) => { const m = e?.mazo || 'conocer'; return abierto(e, m) ? m : ['conocer', 'picantes', 'nuestras'].find((x) => abierto(e, x)); };
 
   /** orden mezclado y reproducible (los dos celus ven el mismo con la misma semilla) */
   function orden(n, semilla) {
@@ -29,6 +35,6 @@
     return VARIOS[h % VARIOS.length];
   }
 
-  const Q = { turno, nivel, siguiente, picantesOk, orden, emojiPara };
+  const Q = { turno, nivel, siguiente, picantesOk, abierto, campo, visible, orden, emojiPara };
   if (typeof module !== 'undefined') module.exports = Q; else g.PreguntasLogica = Q;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -29,12 +29,13 @@
 #preguntas .botones button { font: inherit; font-weight: 800; font-size: 1rem; border-radius: 16px; padding: 15px; border: 0 }
 #pqPaso { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 2px var(--line) }
 #pqSig { background: var(--ink); color: var(--bg) }
-#pqBloqueo { border-radius: 28px; background: #c2364a; color: #fff4f1; padding: 26px 22px; text-align: center }
+#pqBloqueo { border-radius: 28px; background: var(--fondo, #c2364a); color: var(--tinta, #fff4f1); padding: 26px 22px; text-align: center }
 #pqBloqueo[hidden] { display: none }
 #pqBloqueo .e { font-size: 64px } #pqBloqueo b { display: block; font-family: 'Bricolage Grotesque', sans-serif; font-size: 1.4rem; margin: 8px 0 }
 #preguntas .tog { display: flex; gap: 12px; align-items: center; background: var(--surface); border-radius: 16px; padding: 14px 16px; font-size: .88rem; color: var(--muted); cursor: pointer }
 #preguntas .tog b { color: var(--ink); display: block; font-size: .95rem }
 #preguntas .tog input { margin-left: auto; width: 24px; height: 24px; accent-color: #c2364a; flex: none }
+#preguntas .tog.con input { accent-color: #0f5e6e }
 #preguntas .nuevas { display: flex; flex-direction: column; gap: 8px }
 #preguntas .nuevas[hidden] { display: none }
 #preguntas .nuevas form { display: flex; gap: 8px }
@@ -69,21 +70,25 @@
         <button type="button" class="mazo" data-mazo="picantes">🌶️ Picantes <span class="n"></span></button>
         <button type="button" class="mazo" data-mazo="nuestras">✍️ Nuestras <span class="n"></span></button>
       </div>
-      <div id="pqBloqueo" hidden><div class="e">🌶️</div><b>Las picantes están bajo llave</b>Aparecen cuando los dos prenden "Mostrar picantes", acá abajo.</div>
+      <div id="pqBloqueo" hidden><div class="e"></div><b></b><span></span></div>
       <div class="pila"><div class="atras dos"></div><div class="atras"></div><article id="pqCarta" aria-live="polite"></article></div>
       <div class="botones"><button type="button" id="pqPaso">Paso</button><button type="button" id="pqSig">Siguiente carta</button></div>
       <div class="nuevas" id="pqNuevas" hidden>
         <form id="pqForm" autocomplete="off"><input id="pqNueva" maxlength="140" placeholder="Escribí una pregunta para el mazo" aria-label="Nueva pregunta"><button type="submit" id="pqAgregar">Sumar</button></form>
         <ul id="pqLista"></ul>
       </div>
+      <label class="tog con"><span><b>Mostrar "Para conocernos"</b><span id="pqConTxt"></span></span><input type="checkbox" id="pqConocer"></label>
       <label class="tog"><span><b>Mostrar picantes</b><span id="pqPicTxt"></span></span><input type="checkbox" id="pqPicantes"></label>`;
 
-    let est = {}, listo = false, nuestras = [], quierePicantes = false, ultimaClave = '', ultimoAvance = 0;
+    let est = {}, listo = false, nuestras = [], quiere = '', ultimaClave = '', ultimoAvance = 0; // quiere: mazo con candado que tocó y todavía no se abrió
     const nom = (k) => nombres()[k] || (k === 'A' ? 'Lipu' : 'Guti');
-    const campoPic = () => (yo() === 'A' ? 'picA' : 'picB');
     const elegido = () => est.mazo || 'conocer';
-    // mazo que se ve: las picantes solo si las prendieron los dos
-    const mazoVisible = () => (elegido() === 'picantes' && !Q.picantesOk(est) ? 'conocer' : elegido());
+    // mazo que se ve: los que tienen candado solo si los prendieron los dos
+    const mazoVisible = () => Q.visible(est);
+    const LLAVE = {
+      conocer: { input: 'pqConocer', txt: 'pqConTxt', e: '🫶', titulo: '"Para conocernos" está bajo llave', pista: 'Aparecen cuando los dos prenden "Mostrar Para conocernos", acá abajo.', pal: 'n1' },
+      picantes: { input: 'pqPicantes', txt: 'pqPicTxt', e: '🌶️', titulo: 'Las picantes están bajo llave', pista: 'Aparecen cuando los dos prenden "Mostrar picantes", acá abajo.', pal: 'picantes' },
+    };
     const ordenPic = () => Q.orden(C.PICANTES.length, est.seed || 1);
     function cartas(m) {
       if (m === 'picantes') return ordenPic().map((i) => C.PICANTES[i]);
@@ -108,18 +113,25 @@
     function pintar() {
       const m = mazoVisible(), lista = cartas(m), i = Math.min(est[m] || 0, lista.length), carta = lista[i], fin = i >= lista.length;
       // mazos
-      raiz.querySelectorAll('[data-mazo]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mazo === (quierePicantes && !Q.picantesOk(est) ? 'picantes' : m))));
-      raiz.querySelector('[data-mazo="conocer"] .n').textContent = Math.min((est.conocer || 0) + 1, 36) + '/36';
+      const bloqueo = !!quiere && !Q.abierto(est, quiere);
+      raiz.querySelectorAll('[data-mazo]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mazo === (bloqueo ? quiere : m))));
+      raiz.querySelector('[data-mazo="conocer"] .n').textContent = Q.abierto(est, 'conocer') ? Math.min((est.conocer || 0) + 1, 36) + '/36' : '🔒';
       raiz.querySelector('[data-mazo="picantes"] .n').textContent = Q.picantesOk(est) ? Math.min((est.picantes || 0) + 1, C.PICANTES.length) + '/' + C.PICANTES.length : '🔒';
       raiz.querySelector('[data-mazo="nuestras"] .n').textContent = String(nuestras.length);
-      // picantes bloqueadas (si las pidió)
-      const bloqueo = quierePicantes && !Q.picantesOk(est);
-      $('pqBloqueo').hidden = !bloqueo;
+      // mazo con candado que pidió y todavía no se abrió
+      const bq = $('pqBloqueo'); bq.hidden = !bloqueo;
+      if (bloqueo) {
+        const L = LLAVE[quiere]; bq.children[0].textContent = L.e; bq.children[1].textContent = L.titulo; bq.children[2].textContent = L.pista;
+        for (const [k, v] of Object.entries(PAL[L.pal])) bq.style.setProperty('--' + k, v);
+      }
       raiz.querySelector('.pila').hidden = bloqueo; raiz.querySelector('.botones').hidden = bloqueo;
-      $('pqPicantes').checked = !!est[campoPic()];
-      const otro = yo() === 'A' ? 'B' : 'A', otroOn = !!est[otro === 'A' ? 'picA' : 'picB'];
-      $('pqPicTxt').textContent = Q.picantesOk(est) ? 'Prendidas por los dos.' : `Aparecen solo si los dos las prenden. ${nom(otro)}: ${otroOn ? 'prendido' : 'apagado'}.`;
-      $('pqNuevas').hidden = m !== 'nuestras';
+      const otro = yo() === 'A' ? 'B' : 'A';
+      for (const [mz, L] of Object.entries(LLAVE)) {
+        $(L.input).checked = !!est[Q.campo(mz, yo())];
+        const otroOn = !!est[Q.campo(mz, otro)];
+        $(L.txt).textContent = Q.abierto(est, mz) ? 'Prendidas por los dos.' : `Aparecen solo si los dos las prenden. ${nom(otro)}: ${otroOn ? 'prendido' : 'apagado'}.`;
+      }
+      $('pqNuevas').hidden = bloqueo || m !== 'nuestras';
       $('pqSig').disabled = $('pqPaso').disabled = !listo;
       // carta
       const pal = m === 'conocer' ? PAL['n' + Q.nivel(Math.min(i, 35))] : PAL[m];
@@ -165,13 +177,13 @@
     raiz.querySelector('.mazos').addEventListener('click', (e) => {
       const b = e.target.closest('[data-mazo]'); if (!b) return;
       const m = b.dataset.mazo;
-      if (m === 'picantes' && !Q.picantesOk(est)) { quierePicantes = true; return pintar(); }
-      quierePicantes = false; guardar({ mazo: m });
+      if (!Q.abierto(est, m)) { quiere = m; return pintar(); }
+      quiere = ''; guardar({ mazo: m });
     });
-    $('pqPicantes').addEventListener('change', (e) => {
-      const on = e.target.checked;
-      if (on && quierePicantes) guardar({ [campoPic()]: true, mazo: 'picantes' }); // la pidió: si con esto quedan prendidas por los dos, se muestran
-      else guardar({ [campoPic()]: on });
+    for (const [mz, L] of Object.entries(LLAVE)) $(L.input).addEventListener('change', (e) => {
+      const on = e.target.checked, c = Q.campo(mz, yo());
+      if (on && quiere === mz) guardar({ [c]: true, mazo: mz }); // lo pidió: si con esto queda prendido por los dos, se muestra
+      else guardar({ [c]: on });
     });
     $('pqForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -205,8 +217,7 @@
 
     db.doc('juego/preguntas').onSnapshot((d) => {
       listo = true; est = (d.exists && d.data()) || {};
-      if (quierePicantes && Q.picantesOk(est)) { quierePicantes = false; if (elegido() !== 'picantes') guardar({ mazo: 'picantes' }); }
-      if (elegido() === 'picantes' && Q.picantesOk(est)) quierePicantes = false;
+      if (quiere && Q.abierto(est, quiere)) { const m = quiere; quiere = ''; if (elegido() !== m) guardar({ mazo: m }); }
       pintar();
     });
     db.collection('preguntas').orderBy('creado').onSnapshot((q) => { nuestras = q.docs.map((x) => ({ id: x.id, ...x.data() })); pintarLista(); pintar(); });
