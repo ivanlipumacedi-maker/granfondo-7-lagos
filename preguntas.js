@@ -136,7 +136,7 @@
         const L = LLAVE[quiere]; bq.children[0].textContent = L.e; bq.children[1].textContent = L.titulo; bq.children[2].textContent = L.pista;
         for (const [k, v] of Object.entries(PAL[L.pal])) bq.style.setProperty('--' + k, v);
       }
-      raiz.querySelector('.pila').hidden = bloqueo; raiz.querySelector('.botones').hidden = bloqueo; $('pqModo').hidden = bloqueo;
+      raiz.querySelector('.pila').hidden = bloqueo; raiz.querySelector('.botones').hidden = bloqueo;
       const modo = est.modo || 'turnos';
       raiz.querySelectorAll('[data-modo]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.modo === modo)));
       $('pqModoTxt').textContent = { turnos: 'Se van alternando, una carta cada uno.', azar: 'Se sortea en cada carta, pero parejo: cada 4 cartas pregunta 2 veces cada uno.', elegir: 'En cada carta tocan quién pregunta.' }[modo] || '';
