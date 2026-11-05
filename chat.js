@@ -14,6 +14,10 @@
   font-size: .72rem; font-weight: 800; display: grid; place-items: center; border: 2px solid var(--surface) }
 #chatPanel { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column }
 #chatPanel[hidden] { display: none }
+/* rosa de Guti (B) solo en el chat; en el resto de la app B sigue con --b. Claro: rosa intenso bajo texto claro; oscuro: rosa suave bajo texto oscuro */
+#chatPanel { --rosa: #c2185b }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #chatPanel { --rosa: #f48fb1 } }
+:root[data-theme="dark"] #chatPanel { --rosa: #f48fb1 }
 #chatPanel header { display: flex; align-items: center; gap: 12px; padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px; background: var(--surface); border-bottom: 1px solid var(--line) }
 #chatPanel header button { background: none; border: 0; color: var(--ink); font-size: 1.5rem; padding: 4px 8px; line-height: 1 }
 #chatPanel header b { font-size: 1.05rem }
@@ -25,7 +29,7 @@
 .msg { display: flex; flex-direction: column; max-width: 80% }
 .msg.resaltado .burbuja { animation: resaltar 1.6s ease-out }
 @keyframes resaltar { 0%, 40% { box-shadow: 0 0 0 4px var(--accent) } 100% { box-shadow: 0 0 0 0 transparent } }
-.burbuja .cita { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: rgba(0,0,0,.12); border: 0; border-left: 4px solid var(--b); border-radius: 8px; padding: 4px 8px; margin: 1px 0 4px; cursor: pointer }
+.burbuja .cita { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: rgba(0,0,0,.12); border: 0; border-left: 4px solid var(--rosa); border-radius: 8px; padding: 4px 8px; margin: 1px 0 4px; cursor: pointer }
 .burbuja .cita.A { border-left-color: var(--a) }
 .msg.mio .burbuja .cita { border-left-color: rgba(255,255,255,.75); background: rgba(0,0,0,.16) }
 .burbuja .cita b { display: block; font-size: .78rem }
@@ -42,16 +46,16 @@
 .burbuja { padding: 7px 11px 5px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); user-select: none; -webkit-user-select: none;
   -webkit-touch-callout: none; touch-action: pan-y pinch-zoom } /* el gesto horizontal (deslizar para responder) llega a la página; el zoom con dos dedos sigue */
 .msg.mio .burbuja { color: var(--bg); border: 0 }
-.msg.mio.A .burbuja { background: var(--a) } .msg.mio.B .burbuja { background: var(--b) }
+.msg.mio.A .burbuja { background: var(--a) } .msg.mio.B .burbuja { background: var(--rosa) }
 .msg.mio .burbuja { border-bottom-right-radius: 5px } .msg.otro .burbuja { border-bottom-left-radius: 5px }
 .burbuja .txt { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .97rem; line-height: 1.35 }
 .burbuja .hora { display: block; text-align: right; font-size: .68rem; opacity: .7; margin-top: 2px; white-space: nowrap }
 .burbuja .hora .tilde { margin-left: 3px; font-weight: 800; letter-spacing: -3px; display: inline-block; padding-right: 3px }
 /* verde "leído" que se vea sobre cada burbuja: claro sobre el lago oscuro, oscuro sobre las burbujas claras */
 .burbuja .hora .tilde.t-leido { opacity: 1; color: #0a6b2c }
-.msg.A .burbuja .hora .tilde.t-leido { color: #7dffa8 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .msg.A .burbuja .hora .tilde.t-leido { color: #0a6b2c } }
-:root[data-theme="dark"] .msg.A .burbuja .hora .tilde.t-leido { color: #0a6b2c }
+.msg.A .burbuja .hora .tilde.t-leido, .msg.mio.B .burbuja .hora .tilde.t-leido { color: #7dffa8 }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .msg.A .burbuja .hora .tilde.t-leido, :root:not([data-theme="light"]) .msg.mio.B .burbuja .hora .tilde.t-leido { color: #0a6b2c } }
+:root[data-theme="dark"] .msg.A .burbuja .hora .tilde.t-leido, :root[data-theme="dark"] .msg.mio.B .burbuja .hora .tilde.t-leido { color: #0a6b2c }
 .msg.mio .burbuja .hora { opacity: .85 }
 .burbuja.eliminado .txt { font-style: italic; opacity: .7 }
 #chatPanel header .tit { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.15 }
