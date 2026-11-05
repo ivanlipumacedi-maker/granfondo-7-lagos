@@ -1,0 +1,9 @@
+# Supabase CLI (estado local del link: ref, pooler-url, versiones)
+supabase/.temp/
+supabase/.branches/
+supabase/.env*
+
+# Secretos (ver CLAUDE.md, "Secretos")
+.env
+.env.*
+!.env.example
