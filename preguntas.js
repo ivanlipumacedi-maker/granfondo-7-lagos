@@ -20,6 +20,15 @@
 #pqCarta .turno .p { padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.8); color: #1f2a2e }
 #pqCarta .turno .p.A { box-shadow: inset 0 0 0 2px #0f5e6e } #pqCarta .turno .p.B { box-shadow: inset 0 0 0 2px #b7862a }
 #pqCarta .turno .f { opacity: .8; font-weight: 600 }
+#pqCarta .turno button.p { font: inherit; font-weight: 800; border: 0; cursor: pointer; padding: 8px 16px; min-height: 40px }
+#pqCarta .turno .cambiar { font: inherit; font-weight: 800; border: 0; background: rgba(255,255,255,.35); color: inherit; border-radius: 999px; min-width: 40px; min-height: 32px; cursor: pointer }
+#preguntas .modo { display: flex; flex-direction: column; gap: 8px; background: var(--surface); border-radius: 16px; padding: 14px 16px }
+#preguntas .modo[hidden] { display: none }
+#preguntas .modo > b { color: var(--ink); font-size: .95rem }
+#preguntas .modo .ops { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px }
+#preguntas .modo .ops button { font: inherit; font-weight: 700; font-size: .85rem; border: 0; border-radius: 12px; padding: 10px 4px; background: var(--bg); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line) }
+#preguntas .modo .ops button[aria-pressed="true"] { background: var(--ink); color: var(--bg); box-shadow: none }
+#preguntas .modo small { color: var(--muted); font-size: .82rem }
 #pqCarta .dibujo { margin: 24px 0 6px; width: 132px; height: 132px; flex: none; border-radius: 42% 58% 55% 45% / 50% 44% 56% 50%; background: var(--blob);
   display: grid; place-items: center; font-size: 72px; line-height: 1; transform: rotate(-6deg); box-shadow: inset 0 -6px 0 rgba(0,0,0,.06) }
 #pqCarta .dibujo span { transform: rotate(6deg) }
@@ -73,6 +82,9 @@
       <div id="pqBloqueo" hidden><div class="e"></div><b></b><span></span></div>
       <div class="pila"><div class="atras dos"></div><div class="atras"></div><article id="pqCarta" aria-live="polite"></article></div>
       <div class="botones"><button type="button" id="pqPaso">Paso</button><button type="button" id="pqSig">Siguiente carta</button></div>
+      <div class="modo" id="pqModo"><b>¿Quién le pregunta a quién?</b>
+        <div class="ops" role="group" aria-label="Quién pregunta"><button type="button" data-modo="turnos">Por turnos</button><button type="button" data-modo="azar">Al azar</button><button type="button" data-modo="elegir">Lo elegimos</button></div>
+        <small id="pqModoTxt"></small></div>
       <div class="nuevas" id="pqNuevas" hidden>
         <form id="pqForm" autocomplete="off"><input id="pqNueva" maxlength="140" placeholder="Escribí una pregunta para el mazo" aria-label="Nueva pregunta"><button type="submit" id="pqAgregar">Sumar</button></form>
         <ul id="pqLista"></ul>
@@ -124,7 +136,10 @@
         const L = LLAVE[quiere]; bq.children[0].textContent = L.e; bq.children[1].textContent = L.titulo; bq.children[2].textContent = L.pista;
         for (const [k, v] of Object.entries(PAL[L.pal])) bq.style.setProperty('--' + k, v);
       }
-      raiz.querySelector('.pila').hidden = bloqueo; raiz.querySelector('.botones').hidden = bloqueo;
+      raiz.querySelector('.pila').hidden = bloqueo; raiz.querySelector('.botones').hidden = bloqueo; $('pqModo').hidden = bloqueo;
+      const modo = est.modo || 'turnos';
+      raiz.querySelectorAll('[data-modo]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.modo === modo)));
+      $('pqModoTxt').textContent = { turnos: 'Se van alternando, una carta cada uno.', azar: 'Se sortea en cada carta, pero parejo: cada 4 cartas pregunta 2 veces cada uno.', elegir: 'En cada carta tocan quién pregunta.' }[modo] || '';
       const otro = yo() === 'A' ? 'B' : 'A';
       for (const [mz, L] of Object.entries(LLAVE)) {
         $(L.input).checked = !!est[Q.campo(mz, yo())];
@@ -139,13 +154,15 @@
       for (const [k, v] of Object.entries(pal)) pila.style.setProperty('--' + k, v);
       const el = $('pqCarta');
       // solo se rehace la carta si cambió (si no, el lector de pantalla la volvería a anunciar)
-      const clave = [m, i, carta?.q || '', lista.length, nom('A'), nom('B')].join('|');
+      const tu = carta && !fin ? Q.turnoModo(est.modo, i, carta, { seed: est.seed || 1, elige: Q.eleccion(est, m, i) }) : null;
+      const clave = [m, i, carta?.q || '', lista.length, nom('A'), nom('B'), est.modo || '', JSON.stringify(tu)].join('|');
       const igual = clave === ultimaClave, animar = ultimaClave && !igual; ultimaClave = clave;
       if (igual && el.childElementCount) return;
       const llenar = () => {
         el.replaceChildren(); el.dataset.mazo = m; // el mazo cambia junto con el contenido (no al empezar la animación)
         const t = document.createElement('div'); t.className = 'turno';
         const chip = (k) => { const s = document.createElement('span'); s.className = 'p ' + k; s.textContent = nom(k); return s; };
+        const elegirBtn = (k) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'p ' + k; b.dataset.elige = k; b.textContent = nom(k); b.setAttribute('aria-label', 'Pregunta ' + nom(k)); return b; };
         const txt = (s) => { const x = document.createElement('span'); x.className = 'f'; x.textContent = s; return x; };
         const d = document.createElement('div'); d.className = 'dibujo'; const de = document.createElement('span');
         const p = document.createElement('p'); p.className = 'pregunta';
@@ -156,9 +173,12 @@
           p.textContent = m === 'nuestras' && !lista.length ? 'Escriban sus preguntas acá abajo y se suman al mazo.' : 'Llegaron al final. Tocá "Siguiente carta" para volver a empezar.';
           izq.textContent = ''; der.textContent = lista.length ? `${lista.length} de ${lista.length}` : '';
         } else {
-          const tu = Q.turno(i, carta);
           if (tu.ambos) t.append(txt('Responden los dos'), chip('A'), chip('B'));
-          else t.append(chip(tu.pregunta), txt('le pregunta a'), chip(tu.responde));
+          else if (tu.elegir) t.append(txt('¿Quién pregunta?'), elegirBtn('A'), elegirBtn('B'));
+          else {
+            t.append(chip(tu.pregunta), txt('le pregunta a'), chip(tu.responde));
+            if ((est.modo || 'turnos') === 'elegir') { const c = document.createElement('button'); c.type = 'button'; c.className = 'cambiar'; c.dataset.elige = tu.responde; c.textContent = '⇄'; c.setAttribute('aria-label', 'Cambiar: que pregunte ' + nom(tu.responde)); t.append(c); }
+          }
           de.textContent = carta.e; p.textContent = carta.q;
           izq.textContent = m === 'conocer' ? 'Nivel ' + Q.nivel(i) + ' de 3' : m === 'picantes' ? 'Picante' : 'La sumó ' + nom(carta.autor);
           der.textContent = `carta ${i + 1} de ${lista.length}`;
@@ -173,6 +193,12 @@
     // un doble toque sin querer no se saltea una carta
     const avanzar = () => { if (!listo || Date.now() - ultimoAvance < 700) return; ultimoAvance = Date.now(); const m = mazoVisible(); guardar({ [m]: Q.siguiente(est[m] || 0, cartas(m).length), mazo: m }); };
     $('pqSig').addEventListener('click', avanzar);
+    $('pqCarta').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-elige]'); if (!b || !listo) return;
+      const m = mazoVisible(), i = Math.min(est[m] || 0, cartas(m).length);
+      guardar({ elige: { m, i, q: b.dataset.elige } });
+    });
+    $('pqModo').addEventListener('click', (e) => { const b = e.target.closest('[data-modo]'); if (b && b.dataset.modo !== (est.modo || 'turnos')) guardar({ modo: b.dataset.modo }); });
     $('pqPaso').addEventListener('click', avanzar);
     raiz.querySelector('.mazos').addEventListener('click', (e) => {
       const b = e.target.closest('[data-mazo]'); if (!b) return;

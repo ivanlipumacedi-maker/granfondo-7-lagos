@@ -35,6 +35,24 @@
     return VARIOS[h % VARIOS.length];
   }
 
-  const Q = { turno, nivel, siguiente, picantesOk, abierto, campo, visible, orden, emojiPara };
+  const par = (q) => ({ pregunta: q, responde: q === 'A' ? 'B' : 'A' });
+  /** quién elige la gente para la carta i del mazo m (o null si todavía no eligieron esa) */
+  const eleccion = (e, m, i) => (e?.elige && e.elige.m === m && e.elige.i === i && (e.elige.q === 'A' || e.elige.q === 'B') ? e.elige.q : null);
+  /**
+   * quién pregunta según el modo: 'turnos' (alterna), 'azar' (sorteado pero parejo: cada 4 cartas 2 y 2,
+   * igual en los dos celus por la semilla) o 'elegir' (lo eligen ellos; sin elección → { elegir: true }).
+   * Las cartas de "responden los dos" no cambian.
+   */
+  function turnoModo(modo, i, carta, { seed = 1, elige = null } = {}) {
+    if (carta?.ambos) return { ambos: true };
+    if (modo === 'azar') {
+      const b = Math.floor(i / 4), mezcla = orden(4, (seed ^ Math.imul(b + 1, 0x9e3779b1)) >>> 0);
+      return par(mezcla[i % 4] < 2 ? 'A' : 'B');
+    }
+    if (modo === 'elegir') return elige ? par(elige) : { elegir: true };
+    return turno(i, carta);
+  }
+
+  const Q = { turnoModo, eleccion, turno, nivel, siguiente, picantesOk, abierto, campo, visible, orden, emojiPara };
   if (typeof module !== 'undefined') module.exports = Q; else g.PreguntasLogica = Q;
 })(typeof window !== 'undefined' ? window : globalThis);
