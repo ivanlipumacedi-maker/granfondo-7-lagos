@@ -42,7 +42,8 @@
 .burbuja { padding: 7px 11px 5px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); user-select: none; -webkit-user-select: none;
   -webkit-touch-callout: none; touch-action: pan-y pinch-zoom } /* el gesto horizontal (deslizar para responder) llega a la página; el zoom con dos dedos sigue */
 .msg.mio .burbuja { color: var(--bg); border: 0 }
-.msg.mio.A .burbuja { background: var(--a) } .msg.mio.B .burbuja { background: var(--b) }
+.msg.mio.A .burbuja { background: #0d7f74; color: #fff } /* Lipu (A): verde turquesa, igual en claro y oscuro */
+.msg.mio.B .burbuja { background: var(--b) }
 /* Guti (B) en su teléfono: sus burbujas van rotando amarillo, verde, negro, blanco (g0..g3, lo asigna pintarLista) */
 .msg.mio.B.g0 .burbuja { background: #f9d71c; color: #1f2a2e }
 .msg.mio.B.g1 .burbuja { background: #1b7a3a; color: #fff }
@@ -62,9 +63,7 @@
 .burbuja .hora .tilde { margin-left: 3px; font-weight: 800; letter-spacing: -3px; display: inline-block; padding-right: 3px }
 /* verde "leído" que se vea sobre cada burbuja: claro sobre el lago oscuro, oscuro sobre las burbujas claras */
 .burbuja .hora .tilde.t-leido { opacity: 1; color: #0a6b2c }
-.msg.A .burbuja .hora .tilde.t-leido { color: #7dffa8 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .msg.A .burbuja .hora .tilde.t-leido { color: #0a6b2c } }
-:root[data-theme="dark"] .msg.A .burbuja .hora .tilde.t-leido { color: #0a6b2c }
+.msg.A .burbuja .hora .tilde.t-leido { color: #7dffa8 } /* sobre el turquesa de Lipu, en los dos temas */
 .msg.mio .burbuja .hora { opacity: .85 }
 .burbuja.eliminado .txt { font-style: italic; opacity: .7 }
 #chatPanel header .tit { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.15 }
