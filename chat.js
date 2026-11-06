@@ -27,7 +27,6 @@
 @keyframes resaltar { 0%, 40% { box-shadow: 0 0 0 4px var(--accent) } 100% { box-shadow: 0 0 0 0 transparent } }
 .burbuja .cita { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: rgba(0,0,0,.12); border: 0; border-left: 4px solid var(--b); border-radius: 8px; padding: 4px 8px; margin: 1px 0 4px; cursor: pointer }
 .burbuja .cita.A { border-left-color: var(--a) }
-.msg.mio .burbuja .cita { border-left-color: rgba(255,255,255,.75); background: rgba(0,0,0,.16) }
 .burbuja .cita b { display: block; font-size: .78rem }
 .burbuja .cita span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: .85rem; opacity: .85; overflow-wrap: anywhere }
 .burbuja.media .cita { margin: 2px 2px 4px; width: calc(100% - 4px) }
@@ -41,11 +40,13 @@
 .msg.otro { align-self: flex-start; align-items: flex-start }
 .burbuja { padding: 7px 11px 5px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); user-select: none; -webkit-user-select: none;
   -webkit-touch-callout: none; touch-action: pan-y pinch-zoom } /* el gesto horizontal (deslizar para responder) llega a la página; el zoom con dos dedos sigue */
-.msg.mio .burbuja { color: var(--bg); border: 0 }
-.msg.mio.A .burbuja { background: #0d7f74; color: #fff } /* Lipu (A): verde turquesa, igual en claro y oscuro */
-.msg.mio.B .burbuja { background: #f9d71c; color: #1f2a2e } /* Guti (B): amarillo, igual en claro y oscuro */
-.msg.mio.B .burbuja .cita { border-left-color: rgba(0,0,0,.45); background: rgba(0,0,0,.08) }
-.msg.mio.B .audio .play { background: #1f2a2e; color: #fff }
+/* color por autor, no por teléfono: Lipu (A) siempre verde agua, Guti (B) siempre amarillo, en los dos teléfonos y en claro/oscuro */
+.msg.A .burbuja { background: #0d7f74; color: #fff; border: 0 }
+.msg.B .burbuja { background: #f9d71c; color: #1f2a2e; border: 0 }
+.msg.A .burbuja .cita { border-left-color: rgba(255,255,255,.75); background: rgba(0,0,0,.16) }
+.msg.B .burbuja .cita { border-left-color: rgba(0,0,0,.45); background: rgba(0,0,0,.08) }
+.msg.A .audio .play { background: #fff; color: #0d7f74 }
+.msg.B .audio .play { background: #1f2a2e; color: #fff }
 .msg.mio .burbuja { border-bottom-right-radius: 5px } .msg.otro .burbuja { border-bottom-left-radius: 5px }
 .burbuja .txt { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .97rem; line-height: 1.35 }
 .burbuja .hora { display: block; text-align: right; font-size: .68rem; opacity: .7; margin-top: 2px; white-space: nowrap }
@@ -101,7 +102,6 @@ img.foto { display: block; border-radius: 13px; max-width: min(250px, 62vw); max
 #chatVisor img { max-width: 100%; max-height: 100%; object-fit: contain }
 .audio { display: flex; align-items: center; gap: 9px; min-width: min(230px, 60vw); padding: 6px 8px 2px }
 .audio .play { width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--ink); color: var(--bg); font-size: .95rem; flex: none }
-.msg.mio .audio .play { background: var(--bg); color: var(--ink) }
 .audio .avance { flex: 1; height: 4px; border-radius: 2px; background: color-mix(in srgb, currentColor 25%, transparent); overflow: hidden }
 .audio .avance i { display: block; height: 100%; width: 0; background: currentColor }
 .audio .dur { font-size: .78rem; min-width: 32px; text-align: right; font-variant-numeric: tabular-nums }
@@ -251,7 +251,8 @@ img.stk { display: block; width: 140px; height: 140px; object-fit: contain; -web
       if (!lista.length) { const p = document.createElement('p'); p.className = 'vacio'; p.textContent = 'Todavía no hay mensajes. ¡Mandá el primero! 🚗'; cont.appendChild(p); }
       for (const m of lista) {
         if (ocultos.has(m.id)) continue; // eliminado para mí
-        const fila = document.createElement('div'); fila.className = `msg ${m.autor === yo() ? 'mio' : 'otro'} ${m.autor}` + (m.id === resaltadoId && Date.now() < resaltadoHasta ? ' resaltado' : ''); fila.dataset.id = m.id;        const bur = document.createElement('div'); bur.className = 'burbuja' + (m.id === selId ? ' sel' : ''); bur.dataset.id = m.id;
+        const fila = document.createElement('div'); fila.className = `msg ${m.autor === yo() ? 'mio' : 'otro'} ${m.autor}` + (m.id === resaltadoId && Date.now() < resaltadoHasta ? ' resaltado' : ''); fila.dataset.id = m.id;
+        const bur = document.createElement('div'); bur.className = 'burbuja' + (m.id === selId ? ' sel' : ''); bur.dataset.id = m.id;
         const hora = document.createElement('span'); hora.className = 'hora'; hora.textContent = (destacados.has(m.id) && m.tipo !== 'eliminado' ? '⭐ ' : '') + (m.editado ? 'Editado ' : '') + L.horaCorta(m.creado);
         const ti = L.tilde(m, yo(), permite('leido') ? estados[otro()] : { ...estados[otro()], leido: null });
         if (ti) { const t = document.createElement('span'); t.className = 'tilde t-' + ti; t.textContent = ti === 'reloj' ? '🕓' : ti === 'enviado' ? '✓' : '✓✓'; t.setAttribute('aria-label', { reloj: 'Enviando', enviado: 'Enviado', entregado: 'Entregado', leido: 'Leído' }[ti]); hora.appendChild(t); }
