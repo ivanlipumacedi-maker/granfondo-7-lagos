@@ -41,19 +41,16 @@
 .burbuja { padding: 7px 11px 5px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); user-select: none; -webkit-user-select: none;
   -webkit-touch-callout: none; touch-action: pan-y pinch-zoom } /* el gesto horizontal (deslizar para responder) llega a la página; el zoom con dos dedos sigue */
 /* color por autor, no por teléfono: Lipu (A) siempre verde agua, Guti (B) siempre amarillo, en los dos teléfonos y en claro/oscuro */
-.msg.A .burbuja { background: #0d7f74; color: #fff; border: 0 }
+.msg.A .burbuja { background: #5fd3c4; color: #10302c; border: 0 }
 .msg.B .burbuja { background: #f9d71c; color: #1f2a2e; border: 0 }
-.msg.A .burbuja .cita { border-left-color: rgba(255,255,255,.75); background: rgba(0,0,0,.16) }
-.msg.B .burbuja .cita { border-left-color: rgba(0,0,0,.45); background: rgba(0,0,0,.08) }
-.msg.A .audio .play { background: #fff; color: #0d7f74 }
-.msg.B .audio .play { background: #1f2a2e; color: #fff }
+.msg.A .burbuja .cita, .msg.B .burbuja .cita { border-left-color: rgba(0,0,0,.45); background: rgba(0,0,0,.08) }
+.msg.A .audio .play, .msg.B .audio .play { background: #1f2a2e; color: #fff }
 .msg.mio .burbuja { border-bottom-right-radius: 5px } .msg.otro .burbuja { border-bottom-left-radius: 5px }
 .burbuja .txt { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .97rem; line-height: 1.35 }
 .burbuja .hora { display: block; text-align: right; font-size: .68rem; opacity: .7; margin-top: 2px; white-space: nowrap }
 .burbuja .hora .tilde { margin-left: 3px; font-weight: 800; letter-spacing: -3px; display: inline-block; padding-right: 3px }
 /* verde "leído" que se vea sobre cada burbuja: claro sobre el lago oscuro, oscuro sobre las burbujas claras */
 .burbuja .hora .tilde.t-leido { opacity: 1; color: #0a6b2c }
-.msg.A .burbuja .hora .tilde.t-leido { color: #7dffa8 } /* sobre el turquesa de Lipu, en los dos temas */
 .msg.mio .burbuja .hora { opacity: .85 }
 .burbuja.eliminado .txt { font-style: italic; opacity: .7 }
 #chatPanel header .tit { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.15 }
