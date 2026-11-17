@@ -7,7 +7,7 @@
 <meta property="og:title" content="Rumbo al Sur">
 <meta property="og:description" content="Lipu y Guti · jueves 19 de noviembre">
 <title>Rumbo al Sur</title>
-<meta name="version" content="03f182c221">
+<meta name="version" content="34e91fb526">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800;900&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap">
@@ -249,6 +249,7 @@ body { margin: 0 }
   <nav class="tabs" role="tablist" id="tabs">
     <button role="tab" data-t="itin" type="button">Itinerario</button>
     <button role="tab" data-t="preguntas" type="button">Preguntas</button>
+    <button role="tab" data-t="trivia" type="button">Trivia</button>
     <button role="tab" data-t="album" type="button">Álbum</button>
     <button role="tab" data-t="valija" type="button">Qué llevamos</button>
     <button role="tab" data-t="bingo" type="button">Bingo de ruta</button>
@@ -303,6 +304,11 @@ body { margin: 0 }
     <div id="preguntas"><p class="hint">Para jugar abrí el link completo que te pasaron por WhatsApp.</p></div>
   </section>
 
+  <section class="panel" data-p="trivia" hidden>
+    <h3>Trivia</h3>
+    <div id="trivia"><p class="hint">Para jugar abrí el link completo que te pasaron por WhatsApp.</p></div>
+  </section>
+
   <section class="panel" data-p="gastos" hidden>
     <h3>Cuentas claras</h3>
     <div class="saldo" id="saldo"></div>
@@ -331,18 +337,22 @@ body { margin: 0 }
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="chat-logica.js?v=03f182c221"></script>
-<script src="chat-medios.js?v=03f182c221"></script>
-<script src="chat.js?v=03f182c221"></script>
-<script src="album-logica.js?v=03f182c221"></script>
-<script src="album-cola.js?v=03f182c221"></script>
-<script src="camara.js?v=03f182c221"></script>
-<script src="editor.js?v=03f182c221"></script>
-<script src="album.js?v=03f182c221"></script>
-<script src="ruta-logica.js?v=03f182c221"></script>
-<script src="preguntas-cartas.js?v=03f182c221"></script>
-<script src="preguntas-logica.js?v=03f182c221"></script>
-<script src="preguntas.js?v=03f182c221"></script>
+<script src="chat-logica.js?v=34e91fb526"></script>
+<script src="chat-medios.js?v=34e91fb526"></script>
+<script src="chat.js?v=34e91fb526"></script>
+<script src="album-logica.js?v=34e91fb526"></script>
+<script src="album-cola.js?v=34e91fb526"></script>
+<script src="camara.js?v=34e91fb526"></script>
+<script src="editor.js?v=34e91fb526"></script>
+<script src="album.js?v=34e91fb526"></script>
+<script src="ruta-logica.js?v=34e91fb526"></script>
+<script src="preguntas-cartas.js?v=34e91fb526"></script>
+<script src="preguntas-logica.js?v=34e91fb526"></script>
+<script src="preguntas.js?v=34e91fb526"></script>
+<script src="trivia-logica.js?v=34e91fb526"></script>
+<script src="trivia-preguntas.js?v=34e91fb526"></script>
+<script src="trivia-duo.js?v=34e91fb526"></script>
+<script src="trivia.js?v=34e91fb526"></script>
 <script>
 const START = new Date('2026-10-29T00:00:00-03:00');
 const TRIP_DATE = '2026-11-19';
@@ -461,7 +471,7 @@ function renderHeader() {
   window.alCambiarSoyChat?.();
   $('gPago').innerHTML = ['A', 'B'].map((k) => `<option value="${k}" ${k === yo ? 'selected' : ''}>Pagó ${esc(n[k])}</option>`).join('');
 }
-$('soy').addEventListener('click', (e) => { const b = e.target.closest('[data-soy]'); if (!b) return; yo = b.dataset.soy; ls.set('soy', yo); renderAll(); window.alCambiarSoy?.(); window.alCambiarSoyChat?.(); window.alCambiarSoyPreguntas?.(); });
+$('soy').addEventListener('click', (e) => { const b = e.target.closest('[data-soy]'); if (!b) return; yo = b.dataset.soy; ls.set('soy', yo); renderAll(); window.alCambiarSoy?.(); window.alCambiarSoyChat?.(); window.alCambiarSoyPreguntas?.(); window.alCambiarSoyTrivia?.(); });
 
 /* ---------- Pestañas ---------- */
 function showTab(t) {
@@ -639,6 +649,10 @@ function describirCambio(col, id, a, d) {
     }
     return null;
   }
+  if (col === 'trivia') {
+    if (id === 'partida' && d?.estado === 'espera' && a?.id !== d.id) return 'armó una partida de Trivia: entrá a la pestaña Trivia y sumate';
+    return null;
+  }
   if (col === 'extras') {
     if (!d) return `borró la misión extra ${comillas(a?.texto)}`;
     if (!a) return `propuso una misión extra: ${comillas(d.texto)}`;
@@ -731,11 +745,33 @@ function codigoViaje() {
 
 function crearDb(sb, viaje) {
   const cache = {}, subs = {}, cargando = {};
+  // Cargas y escrituras se cruzan: una carga que salió antes que una escritura (propia) o que otra carga más nueva
+  // NO puede pisar la caché, porque deja datos viejos (se perdía la respuesta recién mandada en la Trivia y la
+  // partida "volvía" y se salteaba una pregunta). seq = número de carga; aplicada = la más nueva que ya se mostró;
+  // gen = escrituras terminadas; enVuelo = escrituras sin terminar. Si se descarta por una escritura, se vuelve a
+  // leer cuando termina.
+  const seq = {}, aplicada = {}, gen = {}, enVuelo = {}, recargar = {};
+  const empezar = (col) => { enVuelo[col] = (enVuelo[col] || 0) + 1; };
+  const terminar = (col) => {
+    enVuelo[col]--; gen[col] = (gen[col] || 0) + 1;
+    if (!enVuelo[col] && recargar[col]) { recargar[col] = false; cargar(col).catch(onErr); }
+  };
+  // Una escritura colgada (cambio de wifi a datos, ruta sin señal) se corta a los 15 s: si no, enVuelo no bajaba
+  // nunca y esa colección dejaba de mostrar los cambios del otro.
+  function conTope(q) {
+    const c = new AbortController(), t = setTimeout(() => c.abort(), 15000);
+    return Promise.resolve(q.abortSignal(c.signal)).finally(() => clearTimeout(t));
+  }
   const canal = sb.channel('viaje-' + viaje, { config: { broadcast: { self: false } } });
   const avisar = (col) => (subs[col] || []).forEach((fn) => fn());
   async function cargar(col) {
+    const mia = seq[col] = (seq[col] || 0) + 1, g0 = gen[col] || 0;
     const { data, error } = await sb.from('docs').select('id,data').eq('viaje', viaje).eq('col', col);
     if (error) throw error;
+    if (mia < (aplicada[col] || 0)) return;              // ya se mostró una más nueva
+    if (enVuelo[col]) { recargar[col] = true; return; }  // la relee terminar()
+    if ((gen[col] || 0) !== g0) return cargar(col);      // salió antes de una escritura: vieja
+    aplicada[col] = mia;
     cache[col] = new Map(data.map((r) => [r.id, r.data]));
     avisar(col);
   }
@@ -753,17 +789,25 @@ function crearDb(sb, viaje) {
   async function escribirFila(col, id, data) {
     const antes = cache[col]?.get(id);
     (cache[col] = cache[col] || new Map()).set(id, data); avisar(col);
-    const { error } = await sb.from('docs').upsert({ viaje, col, id, data, updated_at: new Date().toISOString() });
-    if (error) { await cargar(col); throw error; }
+    empezar(col);
+    let error; try { ({ error } = await conTope(sb.from('docs').upsert({ viaje, col, id, data, updated_at: new Date().toISOString() }))); } finally { terminar(col); }
+    if (error) { await cargar(col).catch(() => {}); throw error; }
     canal.send({ type: 'broadcast', event: 'cambio', payload: { col } });
     avisarCambio(col, id, antes, data);
   }
-  async function mezclarFila(col, id, parche) {
+  // si: condición (data @> si). Con condición, si el doc ya no está así no cambia nada y devuelve null (sin error).
+  // entero: reemplaza el doc completo en vez de mezclar (con si null, lo crea solo si no existe).
+  async function mezclarFila(col, id, parche, si, entero) {
     const antes = cache[col]?.get(id);
-    const { data, error } = await sb.rpc('docs_merge', { p_col: col, p_id: id, p_patch: parche });
-    if (error) { await cargar(col); throw error; }
-    if (data == null) { await cargar(col); const e = new Error('ya no existe'); e.code = 'borrada'; throw e; } // la borró el otro
-    (cache[col] = cache[col] || new Map()).set(id, data); avisar(col);
+    empezar(col);
+    let data, error, releyendo;
+    try {
+      ({ data, error } = await conTope(entero ? sb.rpc('docs_reemplazar_si', { p_col: col, p_id: id, p_data: parche, p_si: si }) : si ? sb.rpc('docs_merge_si', { p_col: col, p_id: id, p_patch: parche, p_si: si }) : sb.rpc('docs_merge', { p_col: col, p_id: id, p_patch: parche })));
+    } finally { releyendo = !!recargar[col] && enVuelo[col] === 1; terminar(col); }
+    if (error) { await cargar(col).catch(() => {}); throw error; }
+    if (data == null) { await cargar(col).catch(() => {}); if (si || entero) return null; const e = new Error('ya no existe'); e.code = 'borrada'; throw e; } // la borró el otro
+    // si mientras tanto cambió algo el otro, terminar() ya lo está releyendo: no mostrar un instante lo de antes
+    if (!releyendo) { (cache[col] = cache[col] || new Map()).set(id, data); avisar(col); }
     canal.send({ type: 'broadcast', event: 'cambio', payload: { col } });
     avisarCambio(col, id, antes, data);
     return data;
@@ -771,8 +815,9 @@ function crearDb(sb, viaje) {
   async function borrarFila(col, id) {
     const antes = cache[col]?.get(id);
     cache[col]?.delete(id); avisar(col);
-    const { error } = await sb.from('docs').delete().eq('viaje', viaje).eq('col', col).eq('id', id);
-    if (error) { await cargar(col); throw error; }
+    empezar(col);
+    let error; try { ({ error } = await conTope(sb.from('docs').delete().eq('viaje', viaje).eq('col', col).eq('id', id))); } finally { terminar(col); }
+    if (error) { await cargar(col).catch(() => {}); throw error; }
     canal.send({ type: 'broadcast', event: 'cambio', payload: { col } });
     avisarCambio(col, id, antes, null);
   }
@@ -785,6 +830,8 @@ function crearDb(sb, viaje) {
     set: (data) => escribirFila(col, id, data),
     update: (patch) => escribirFila(col, id, { ...(cache[col]?.get(id) || {}), ...patch }),
     merge: (patch) => mezclarFila(col, id, patch),
+    mergeSi: (patch, si) => mezclarFila(col, id, patch, si),
+    reemplazarSi: (data, si) => mezclarFila(col, id, data, si || null, true),
     delete: () => borrarFila(col, id),
   });
   const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -872,6 +919,7 @@ function iniciarAvisos(sb, viaje) {
   if (window.iniciarChat) iniciarChat({ sb, canal: db.canal, viaje, yo: () => yo, nombres, db });
   if (window.iniciarAlbum) iniciarAlbum({ sb, canal: db.canal, viaje, yo: () => yo, nombres });
   if (window.iniciarPreguntas) iniciarPreguntas({ db, yo: () => yo, nombres });
+  if (window.iniciarTrivia) iniciarTrivia({ db, yo: () => yo, nombres });
   const err = () => { $('status').textContent = 'Se cortó la conexión. Recargá la página.'; };
   db.doc('config/main').onSnapshot((s) => { state.cfg = s.exists ? s.data() : {}; renderAll(); }, err);
   db.doc('juego/misiones').onSnapshot((s) => { state.misiones = (s.exists && s.data().hechas) || {}; renderMision(); }, err);
