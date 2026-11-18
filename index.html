@@ -7,7 +7,7 @@
 <meta property="og:title" content="Rumbo al Sur">
 <meta property="og:description" content="Lipu y Guti · jueves 19 de noviembre">
 <title>Rumbo al Sur</title>
-<meta name="version" content="34e91fb526">
+<meta name="version" content="86d18a1e3c">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800;900&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap">
@@ -248,6 +248,7 @@ body { margin: 0 }
 
   <nav class="tabs" role="tablist" id="tabs">
     <button role="tab" data-t="itin" type="button">Itinerario</button>
+    <button role="tab" data-t="ranking" type="button">Ranking</button>
     <button role="tab" data-t="preguntas" type="button">Preguntas</button>
     <button role="tab" data-t="trivia" type="button">Trivia</button>
     <button role="tab" data-t="album" type="button">Álbum</button>
@@ -271,6 +272,11 @@ body { margin: 0 }
     </form>
     <ol class="ruta" id="ruta"></ol>
     <p class="hint" id="kmTotal"></p>
+  </section>
+
+  <section class="panel" data-p="ranking" hidden>
+    <h3>Ranking del viaje</h3>
+    <div id="ranking"><p class="hint">Para ver el ranking abrí el link completo que te pasaron por WhatsApp.</p></div>
   </section>
 
   <section class="panel" data-p="album" hidden>
@@ -337,22 +343,24 @@ body { margin: 0 }
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="chat-logica.js?v=34e91fb526"></script>
-<script src="chat-medios.js?v=34e91fb526"></script>
-<script src="chat.js?v=34e91fb526"></script>
-<script src="album-logica.js?v=34e91fb526"></script>
-<script src="album-cola.js?v=34e91fb526"></script>
-<script src="camara.js?v=34e91fb526"></script>
-<script src="editor.js?v=34e91fb526"></script>
-<script src="album.js?v=34e91fb526"></script>
-<script src="ruta-logica.js?v=34e91fb526"></script>
-<script src="preguntas-cartas.js?v=34e91fb526"></script>
-<script src="preguntas-logica.js?v=34e91fb526"></script>
-<script src="preguntas.js?v=34e91fb526"></script>
-<script src="trivia-logica.js?v=34e91fb526"></script>
-<script src="trivia-preguntas.js?v=34e91fb526"></script>
-<script src="trivia-duo.js?v=34e91fb526"></script>
-<script src="trivia.js?v=34e91fb526"></script>
+<script src="chat-logica.js?v=86d18a1e3c"></script>
+<script src="chat-medios.js?v=86d18a1e3c"></script>
+<script src="chat.js?v=86d18a1e3c"></script>
+<script src="album-logica.js?v=86d18a1e3c"></script>
+<script src="album-cola.js?v=86d18a1e3c"></script>
+<script src="camara.js?v=86d18a1e3c"></script>
+<script src="editor.js?v=86d18a1e3c"></script>
+<script src="album.js?v=86d18a1e3c"></script>
+<script src="ruta-logica.js?v=86d18a1e3c"></script>
+<script src="preguntas-cartas.js?v=86d18a1e3c"></script>
+<script src="preguntas-logica.js?v=86d18a1e3c"></script>
+<script src="preguntas.js?v=86d18a1e3c"></script>
+<script src="trivia-logica.js?v=86d18a1e3c"></script>
+<script src="trivia-preguntas.js?v=86d18a1e3c"></script>
+<script src="trivia-duo.js?v=86d18a1e3c"></script>
+<script src="trivia.js?v=86d18a1e3c"></script>
+<script src="ranking-logica.js?v=86d18a1e3c"></script>
+<script src="ranking.js?v=86d18a1e3c"></script>
 <script>
 const START = new Date('2026-10-29T00:00:00-03:00');
 const TRIP_DATE = '2026-11-19';
@@ -436,9 +444,8 @@ function renderMision() {
 }
 document.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-mis]'); if (!b || !state.db) return;
-  const i = b.dataset.mis, m = { ...state.misiones };
-  if (m[i]) delete m[i]; else m[i] = yo;
-  await escribir(() => state.db.doc('juego/misiones').set({ hechas: m }));
+  const i = b.dataset.mis;
+  await escribir(() => guardarCampo('juego/misiones', 'd' + i, state.misiones[i] ? null : yo));
 });
 function renderExtras() {
   const n = nombres();
@@ -447,7 +454,7 @@ function renderExtras() {
 }
 $('extras').addEventListener('click', (e) => {
   const t = e.target.closest('[data-ex]');
-  if (t) { const x = state.extras.find((i) => i.id === t.dataset.ex); escribir(() => state.db.collection('extras').doc(t.dataset.ex).update({ hecha: x?.hecha ? null : yo })); }
+  if (t) { const x = state.extras.find((i) => i.id === t.dataset.ex); escribir(() => cambiarItem('extras', t.dataset.ex, { hecha: x?.hecha ? null : yo })); }
   const d = e.target.closest('[data-del-ex]');
   if (d) armarBorrado(d, () => escribir(() => state.db.collection('extras').doc(d.dataset.delEx).delete()));
 });
@@ -471,7 +478,7 @@ function renderHeader() {
   window.alCambiarSoyChat?.();
   $('gPago').innerHTML = ['A', 'B'].map((k) => `<option value="${k}" ${k === yo ? 'selected' : ''}>Pagó ${esc(n[k])}</option>`).join('');
 }
-$('soy').addEventListener('click', (e) => { const b = e.target.closest('[data-soy]'); if (!b) return; yo = b.dataset.soy; ls.set('soy', yo); renderAll(); window.alCambiarSoy?.(); window.alCambiarSoyChat?.(); window.alCambiarSoyPreguntas?.(); window.alCambiarSoyTrivia?.(); });
+$('soy').addEventListener('click', (e) => { const b = e.target.closest('[data-soy]'); if (!b) return; yo = b.dataset.soy; ls.set('soy', yo); renderAll(); window.alCambiarSoy?.(); window.alCambiarSoyChat?.(); window.alCambiarSoyPreguntas?.(); window.alCambiarSoyTrivia?.(); window.alCambiarSoyRanking?.(); });
 
 /* ---------- Pestañas ---------- */
 function showTab(t) {
@@ -540,7 +547,7 @@ $('fParada').addEventListener('submit', async (e) => {
   if (id && !state.paradas.some((p) => p.id === id)) { limpiarParada(); return aviso('Esa parada ya no existe: la borraron mientras la editabas.'); }
   const ok = id
     ? await escribir(() => state.db.collection('paradas').doc(id).merge(datos).catch((e) => { if (e.code === 'borrada') { limpiarParada(); aviso('Esa parada ya no existe: la borraron mientras la editabas.'); return; } throw e; }))
-    : await escribir(() => state.db.collection('paradas').add({ ...datos, orden: Date.now(), creado: Date.now() }));
+    : await escribir(() => state.db.collection('paradas').add({ ...datos, autor: yo, orden: Date.now(), creado: Date.now() }));
   if (ok) limpiarParada();
 });
 
@@ -559,16 +566,16 @@ function renderValija() {
     return `<div class="cat"><h4>${esc(c)}</h4>${xs.map((x) => `<div class="item ${x.listo ? 'ok' : ''}"><input type="checkbox" id="chk-${esc(x.id)}" data-chk="${esc(x.id)}" ${x.listo ? 'checked' : ''} aria-label="Listo"><label class="t" for="chk-${esc(x.id)}">${esc(x.texto)}${x.tip ? `<div class="hint">${esc(x.tip)}</div>` : ''}</label><button type="button" class="chip ${x.quien === 'AB' ? '' : x.quien}" data-quien="${esc(x.id)}">${x.quien === 'AB' ? 'Cualquiera' : esc(n[x.quien] || '?')}</button><button class="x" type="button" data-del-item="${esc(x.id)}" aria-label="Borrar">✕</button></div>`).join('')}</div>`;
   }).join('');
 }
-$('valija').addEventListener('change', (e) => { const c = e.target.closest('[data-chk]'); if (c) escribir(() => state.db.collection('valija').doc(c.dataset.chk).update({ listo: c.checked })); });
+$('valija').addEventListener('change', (e) => { const c = e.target.closest('[data-chk]'); if (c) escribir(() => cambiarItem('valija', c.dataset.chk, { listo: c.checked, listoPor: c.checked ? yo : null })); });
 $('valija').addEventListener('click', (e) => {
   const q = e.target.closest('[data-quien]');
-  if (q) { const x = state.items.find((i) => i.id === q.dataset.quien); const sig = { A: 'B', B: 'AB', AB: 'A' }[x?.quien] || 'A'; escribir(() => state.db.collection('valija').doc(q.dataset.quien).update({ quien: sig })); }
+  if (q) { const x = state.items.find((i) => i.id === q.dataset.quien); const sig = { A: 'B', B: 'AB', AB: 'A' }[x?.quien] || 'A'; escribir(() => cambiarItem('valija', q.dataset.quien, { quien: sig })); }
   const d = e.target.closest('[data-del-item]');
   if (d) armarBorrado(d, () => escribir(() => state.db.collection('valija').doc(d.dataset.delItem).delete()));
 });
 $('fItem').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const ok = await escribir(() => state.db.collection('valija').add({ texto: $('iTxt').value.trim(), cat: $('iCat').value, quien: $('iQuien').value, listo: false, orden: Date.now() }));
+  const ok = await escribir(() => state.db.collection('valija').add({ texto: $('iTxt').value.trim(), cat: $('iCat').value, quien: $('iQuien').value, listo: false, autor: yo, orden: Date.now() }));
   if (ok) $('iTxt').value = '';
 });
 
@@ -594,9 +601,8 @@ function renderBingo() {
 }
 $('bingo').addEventListener('click', (e) => {
   const c = e.target.closest('[data-b]'); if (!c || !state.db) return;
-  const i = c.dataset.b, m = { ...state.bingo }, otro = yo === 'A' ? 'B' : 'A';
-  if (!m[i]) m[i] = yo; else if (m[i] === yo) m[i] = otro; else delete m[i];
-  escribir(() => state.db.doc('juego/bingo').set({ marcas: m }));
+  const i = c.dataset.b, w = state.bingo[i], otro = yo === 'A' ? 'B' : 'A';
+  escribir(() => guardarCampo('juego/bingo', 'b' + i, !w ? yo : w === yo ? otro : null));
 });
 
 /* ---------- Gastos ---------- */
@@ -612,7 +618,7 @@ function renderGastos() {
 $('gastos').addEventListener('click', (e) => { const b = e.target.closest('[data-del-gasto]'); if (b) armarBorrado(b, () => escribir(() => state.db.collection('gastos').doc(b.dataset.delGasto).delete())); });
 $('fGasto').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const ok = await escribir(() => state.db.collection('gastos').add({ desc: $('gDesc').value.trim(), monto: Math.round(Number($('gMonto').value)), pago: $('gPago').value, creado: Date.now() }));
+  const ok = await escribir(() => state.db.collection('gastos').add({ desc: $('gDesc').value.trim(), monto: Math.round(Number($('gMonto').value)), pago: $('gPago').value, autor: yo, creado: Date.now() }));
   if (ok) { $('gDesc').value = ''; $('gMonto').value = ''; }
 });
 
@@ -634,13 +640,13 @@ function describirCambio(col, id, a, d) {
   const n = nombres();
   if (col === 'config') return 'cambió los ajustes del viaje';
   if (col === 'juego' && id === 'misiones') {
-    const ha = a?.hechas || {}, hd = d?.hechas || {};
+    const ha = RankingLogica.leerMapa(a, 'hechas', 'd'), hd = RankingLogica.leerMapa(d, 'hechas', 'd');
     for (const k of Object.keys(hd)) if (!ha[k]) return `cumplió la misión del día ${+k + 1}: ${comillas(MISIONES[k])}`;
     for (const k of Object.keys(ha)) if (!hd[k]) return `desmarcó la misión del día ${+k + 1}`;
     return null;
   }
   if (col === 'juego' && id === 'bingo') {
-    const ma = a?.marcas || {}, md = d?.marcas || {};
+    const ma = RankingLogica.leerMapa(a, 'marcas', 'b'), md = RankingLogica.leerMapa(d, 'marcas', 'b');
     for (const k of new Set([...Object.keys(ma), ...Object.keys(md)])) {
       if (ma[k] === md[k]) continue;
       const cosa = comillas(BINGO[k]?.[1]);
@@ -684,6 +690,14 @@ function describirCambio(col, id, a, d) {
 }
 
 /* ---------- Datos compartidos ---------- */
+// Cambia un solo campo del doc en el servidor (sin pisar lo que el otro cambió en otro campo). Si el doc todavía no
+// existe, lo crea.
+async function guardarCampo(ruta, campo, valor) {
+  try { await state.db.doc(ruta).merge({ [campo]: valor }); }
+  catch (e) { if (e.code !== 'borrada') throw e; await state.db.doc(ruta).set({ [campo]: valor }); }
+}
+// Lo mismo para un ítem de una lista: si el otro lo borró mientras tanto, no pasa nada.
+const cambiarItem = (col, id, patch) => state.db.collection(col).doc(id).merge(patch).catch((e) => { if (e.code !== 'borrada') throw e; });
 async function escribir(fn) {
   if (!state.db) return false;
   try { await fn(); return true; }
@@ -786,11 +800,22 @@ function crearDb(sb, viaje) {
     const nombre = String(nombres()[yo] || '?').slice(0, 40);
     sb.from('eventos').insert({ viaje, autor: yo, nombre, texto: texto.slice(0, 200) }).then(({ error }) => { if (error) console.error(error); });
   }
+  // Las escrituras de un mismo doc salen de a una, en el orden en que se pidieron: si no, dos seguidas (agregar algo
+  // a la valija y tildarlo al toque) viajaban en paralelo, a veces llegaba primero la segunda y se perdía la marca.
+  // Lo que se ve en pantalla cambia igual al instante; lo único que espera es el pedido al servidor.
+  const colaDoc = {};
+  function enOrden(col, id, fn) {
+    const k = col + '/' + id, p = (colaDoc[k] || Promise.resolve()).then(fn, fn);
+    colaDoc[k] = p;
+    const limpiar = () => { if (colaDoc[k] === p) delete colaDoc[k]; };
+    p.then(limpiar, limpiar);
+    return p;
+  }
   async function escribirFila(col, id, data) {
     const antes = cache[col]?.get(id);
     (cache[col] = cache[col] || new Map()).set(id, data); avisar(col);
     empezar(col);
-    let error; try { ({ error } = await conTope(sb.from('docs').upsert({ viaje, col, id, data, updated_at: new Date().toISOString() }))); } finally { terminar(col); }
+    let error; try { ({ error } = await enOrden(col, id, () => conTope(sb.from('docs').upsert({ viaje, col, id, data, updated_at: new Date().toISOString() })))); } finally { terminar(col); }
     if (error) { await cargar(col).catch(() => {}); throw error; }
     canal.send({ type: 'broadcast', event: 'cambio', payload: { col } });
     avisarCambio(col, id, antes, data);
@@ -799,24 +824,30 @@ function crearDb(sb, viaje) {
   // entero: reemplaza el doc completo en vez de mezclar (con si null, lo crea solo si no existe).
   async function mezclarFila(col, id, parche, si, entero) {
     const antes = cache[col]?.get(id);
+    // Mezcla sin condición: se ve al instante (un segundo toque ya parte de lo nuevo, no repite lo mismo) y el aviso
+    // cuenta solo lo que cambió este teléfono, no lo que trae el servidor del otro.
+    const simple = !si && !entero, mio = simple && antes ? { ...antes, ...parche } : null;
+    if (mio) { cache[col].set(id, mio); avisar(col); }
     empezar(col);
-    let data, error, releyendo;
+    let data, error, releyendo, otrosEnVuelo;
     try {
-      ({ data, error } = await conTope(entero ? sb.rpc('docs_reemplazar_si', { p_col: col, p_id: id, p_data: parche, p_si: si }) : si ? sb.rpc('docs_merge_si', { p_col: col, p_id: id, p_patch: parche, p_si: si }) : sb.rpc('docs_merge', { p_col: col, p_id: id, p_patch: parche })));
-    } finally { releyendo = !!recargar[col] && enVuelo[col] === 1; terminar(col); }
+      ({ data, error } = await enOrden(col, id, () => conTope(entero ? sb.rpc('docs_reemplazar_si', { p_col: col, p_id: id, p_data: parche, p_si: si }) : si ? sb.rpc('docs_merge_si', { p_col: col, p_id: id, p_patch: parche, p_si: si }) : sb.rpc('docs_merge', { p_col: col, p_id: id, p_patch: parche }))));
+    } finally { releyendo = !!recargar[col] && enVuelo[col] === 1; terminar(col); otrosEnVuelo = enVuelo[col] > 0; }
     if (error) { await cargar(col).catch(() => {}); throw error; }
     if (data == null) { await cargar(col).catch(() => {}); if (si || entero) return null; const e = new Error('ya no existe'); e.code = 'borrada'; throw e; } // la borró el otro
-    // si mientras tanto cambió algo el otro, terminar() ya lo está releyendo: no mostrar un instante lo de antes
-    if (!releyendo) { (cache[col] = cache[col] || new Map()).set(id, data); avisar(col); }
+    // si mientras tanto cambió algo el otro, terminar() ya lo está releyendo: no mostrar un instante lo de antes. Si
+    // quedan otras escrituras propias en camino (tildar y destildar rápido), la pantalla ya muestra la última: no
+    // volver un instante a esta.
+    if (!releyendo && !(mio && otrosEnVuelo)) { (cache[col] = cache[col] || new Map()).set(id, data); avisar(col); }
     canal.send({ type: 'broadcast', event: 'cambio', payload: { col } });
-    avisarCambio(col, id, antes, data);
+    avisarCambio(col, id, antes, mio || data);
     return data;
   }
   async function borrarFila(col, id) {
     const antes = cache[col]?.get(id);
     cache[col]?.delete(id); avisar(col);
     empezar(col);
-    let error; try { ({ error } = await conTope(sb.from('docs').delete().eq('viaje', viaje).eq('col', col).eq('id', id))); } finally { terminar(col); }
+    let error; try { ({ error } = await enOrden(col, id, () => conTope(sb.from('docs').delete().eq('viaje', viaje).eq('col', col).eq('id', id)))); } finally { terminar(col); }
     if (error) { await cargar(col).catch(() => {}); throw error; }
     canal.send({ type: 'broadcast', event: 'cambio', payload: { col } });
     avisarCambio(col, id, antes, null);
@@ -920,10 +951,11 @@ function iniciarAvisos(sb, viaje) {
   if (window.iniciarAlbum) iniciarAlbum({ sb, canal: db.canal, viaje, yo: () => yo, nombres });
   if (window.iniciarPreguntas) iniciarPreguntas({ db, yo: () => yo, nombres });
   if (window.iniciarTrivia) iniciarTrivia({ db, yo: () => yo, nombres });
+  if (window.iniciarRanking) iniciarRanking({ db, sb, canal: db.canal, yo: () => yo, nombres });
   const err = () => { $('status').textContent = 'Se cortó la conexión. Recargá la página.'; };
   db.doc('config/main').onSnapshot((s) => { state.cfg = s.exists ? s.data() : {}; renderAll(); }, err);
-  db.doc('juego/misiones').onSnapshot((s) => { state.misiones = (s.exists && s.data().hechas) || {}; renderMision(); }, err);
-  db.doc('juego/bingo').onSnapshot((s) => { state.bingo = (s.exists && s.data().marcas) || {}; renderBingo(); }, err);
+  db.doc('juego/misiones').onSnapshot((s) => { state.misiones = RankingLogica.leerMapa(s.exists && s.data(), 'hechas', 'd'); renderMision(); }, err);
+  db.doc('juego/bingo').onSnapshot((s) => { state.bingo = RankingLogica.leerMapa(s.exists && s.data(), 'marcas', 'b'); renderBingo(); }, err);
   db.collection('extras').orderBy('creado').onSnapshot((q) => { state.extras = q.docs.map((d) => ({ id: d.id, ...d.data() })); renderExtras(); }, err);
   db.collection('paradas').orderBy('orden').onSnapshot((q) => { state.paradas = q.docs.map((d) => ({ id: d.id, ...d.data() })); renderItin(); }, err);
   db.collection('valija').orderBy('orden').onSnapshot((q) => { state.items = q.docs.map((d) => ({ id: d.id, ...d.data() })); renderValija(); }, err);

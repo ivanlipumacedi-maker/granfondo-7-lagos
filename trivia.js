@@ -183,7 +183,7 @@
 
     // ---------- vistas ----------
     function marcadorHtml() {
-      if (!historial.length) return '';
+      if (!historial.some((h) => !h.solo)) return '';
       const n = nombres(), m = D.marcador(historial);
       return `<div class="marcador" aria-label="Partidas ganadas en el viaje"><span class="A">${esc(n.A)} ${m.A}</span><span class="B">${esc(n.B)} ${m.B}</span>${m.empates ? `<small>${m.empates} empate${m.empates > 1 ? 's' : ''}</small>` : ''}<small>· partidas ganadas en el viaje</small></div>`;
     }

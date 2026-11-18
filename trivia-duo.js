@@ -80,15 +80,18 @@
 
   // Fila del historial para el marcador del viaje (solo partidas de a dos que terminaron). Id fijo por partida:
   // escribirla dos veces no la cuenta dos veces.
+  // Las de uno solo también quedan (suman en el Ranking como jugadas), pero no cuentan en el marcador de a dos.
   function registro(p, ahora) {
-    if (p.estado !== 'final' || jugadores(p).length < 2) return null;
+    const js = jugadores(p);
+    if (p.estado !== 'final' || !js.length) return null;
     const t = totales(p);
+    if (js.length === 1) return { id: 'h-' + p.id, data: { solo: js[0], pts: t[js[0]] || 0, fin: ahora } };
     return { id: 'h-' + p.id, data: { pA: t.A, pB: t.B, fin: ahora } };
   }
 
   function marcador(historial) {
     const m = { A: 0, B: 0, empates: 0 };
-    historial.forEach((h) => { if (h.pA > h.pB) m.A++; else if (h.pB > h.pA) m.B++; else m.empates++; });
+    historial.forEach((h) => { if (h.solo) return; if (h.pA > h.pB) m.A++; else if (h.pB > h.pA) m.B++; else m.empates++; });
     return m;
   }
 
